@@ -97,7 +97,7 @@ export function SidebarContents({
       {/* Brand */}
       <div className={`px-5 py-6 flex items-center gap-3 ${isCollapsed ? "justify-center px-3" : ""}`}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/davwo-icon-white.png" alt="DAVWO" className="h-8 w-auto shrink-0 select-none" draggable={false} />
+        <img src="/davwo-icon.png" alt="DAVWO" className="h-8 w-auto shrink-0 select-none" draggable={false} />
         {!isCollapsed && (
           <div className="min-w-0">
             <div className="font-display font-bold text-lg tracking-tight text-foreground leading-none">DAVWO</div>

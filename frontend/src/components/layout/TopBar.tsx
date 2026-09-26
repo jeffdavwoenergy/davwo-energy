@@ -71,8 +71,9 @@ export default function TopBar({ onOpenMobileNav }: { onOpenMobileNav?: () => vo
         >
           <Menu size={20} />
         </button>
-        <div className="lg:hidden">
-          <Logo compact />
+        <div className="lg:hidden flex items-center gap-2">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/davwo-icon.png" alt="DAVWO" className="h-8 w-auto select-none" draggable={false} />
         </div>
         <OrgSwitcher />
       </div>

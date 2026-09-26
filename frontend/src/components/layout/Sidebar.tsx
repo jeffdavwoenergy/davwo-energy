@@ -194,18 +194,6 @@ export function SidebarContents({
           {!isCollapsed && <span className="truncate">Support</span>}
         </Link>
 
-        {/* Sign out */}
-        <button
-          onClick={signOut}
-          title={isCollapsed ? "Sign out" : undefined}
-          className={`w-full flex items-center gap-3 px-3.5 py-2 rounded-xl text-sm text-muted-foreground hover:bg-accent hover:text-foreground transition ${
-            isCollapsed ? "justify-center px-2" : ""
-          }`}
-        >
-          <LogOut size={18} strokeWidth={1.8} className="shrink-0" />
-          {!isCollapsed && <span className="truncate">Sign out</span>}
-        </button>
-
         {/* Collapse toggle (desktop) */}
         {onToggleCollapse && (
           <button

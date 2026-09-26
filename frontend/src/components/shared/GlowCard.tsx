@@ -41,20 +41,15 @@ export default function GlowCard({
         }`}
         style={{ background: GREEN_GLOW }}
       />
-      {/* Crisp green border ring */}
+      {/* Gradient border ring — a soft light-green edge that's always faintly
+          on (so the card "stands out" like the reference hero card) and
+          brightens into a full ring when glowing. */}
       <div
         aria-hidden="true"
-        className={`absolute -inset-[1.5px] rounded-[19px] transition-opacity duration-300 pointer-events-none ${
-          active ? "opacity-100" : "opacity-0"
+        className={`absolute rounded-[19px] pointer-events-none transition-all duration-300 ${
+          active ? "-inset-[1.5px] opacity-100" : "-inset-[1px] opacity-45"
         }`}
         style={{ background: GREEN_GLOW }}
-      />
-      {/* Default subtle border when idle */}
-      <div
-        aria-hidden="true"
-        className={`absolute inset-0 rounded-2xl border border-border transition-opacity duration-300 pointer-events-none ${
-          active ? "opacity-0" : "opacity-100"
-        }`}
       />
       {/* Inner surface */}
       <div

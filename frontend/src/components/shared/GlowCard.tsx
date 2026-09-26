@@ -58,7 +58,7 @@ export default function GlowCard({
       />
       {/* Inner surface */}
       <div
-        className={`relative w-full h-full bg-card rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] transition-shadow duration-300 ${
+        className={`relative w-full h-full bg-card rounded-2xl shadow-[0_1px_3px_rgba(16,24,40,0.06),0_1px_2px_rgba(16,24,40,0.04)] transition-shadow duration-300 ${
           active ? "shadow-[0_10px_34px_rgba(16,185,129,0.14)]" : ""
         } ${className}`}
       >

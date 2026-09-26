@@ -1,0 +1,120 @@
+@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  margin: 0;
+  font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+code {
+  font-family: "JetBrains Mono", source-code-pro, Menlo, Monaco, Consolas, monospace;
+}
+
+@layer base {
+  :root {
+    --background: 210 40% 99%;
+    --foreground: 222.2 47% 11.2%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 47% 11.2%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 47% 11.2%;
+    --primary: 141 70% 36%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 223 47% 14%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 141 70% 36%;
+    --radius: 1rem;
+
+    --mint-bg: 152 60% 94%;
+    --sky-bg: 204 80% 95%;
+    --lavender-bg: 270 60% 95%;
+    --peach-bg: 20 80% 95%;
+    --amber-bg: 43 100% 95%;
+
+    --chart-1: 141 70% 36%;
+    --chart-2: 217 91% 56%;
+    --chart-3: 271 76% 53%;
+    --chart-4: 33 95% 56%;
+    --chart-5: 199 89% 48%;
+  }
+  .dark {
+    --background: 223 47% 7%;
+    --foreground: 210 40% 98%;
+    --card: 223 47% 10%;
+    --card-foreground: 210 40% 98%;
+    --popover: 223 47% 10%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 141 76% 46%;
+    --primary-foreground: 223 47% 7%;
+    --secondary: 223 47% 18%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 223 47% 15%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 223 47% 15%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 223 47% 18%;
+    --input: 223 47% 18%;
+    --ring: 141 76% 46%;
+
+    --mint-bg: 152 35% 18%;
+    --sky-bg: 204 40% 20%;
+    --lavender-bg: 270 30% 20%;
+    --peach-bg: 20 40% 20%;
+    --amber-bg: 43 45% 20%;
+
+    --chart-1: 141 76% 46%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+  h1, h2, h3, h4, h5 {
+    font-family: "Outfit", "Plus Jakarta Sans", system-ui, sans-serif;
+    letter-spacing: -0.01em;
+  }
+}
+
+/* Sidebar scrollbar */
+.sidebar-scroll::-webkit-scrollbar { width: 6px; }
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--border));
+  border-radius: 6px;
+}
+
+/* DAVWO grain overlay (subtle) */
+.bg-grain {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 3px 3px;
+}
+
+/* Map background for dashboard */
+.bg-map-dark {
+  background:
+    radial-gradient(circle at 30% 30%, rgba(34, 197, 94, 0.18), transparent 50%),
+    radial-gradient(circle at 70% 70%, rgba(59, 130, 246, 0.16), transparent 50%),
+    linear-gradient(135deg, #0a0f1c 0%, #0f1830 100%);
+}
+
+/* Delta utilities */
+.delta-up { color: hsl(141 70% 36%); }
+.delta-down { color: hsl(0 72% 51%); }

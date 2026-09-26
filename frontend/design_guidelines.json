@@ -1,0 +1,138 @@
+{
+  "theme": "light",
+  "archetype": "Archetype 1 (Organic & Earthy) blended with Archetype 4 (Swiss/Clear)",
+  "design_philosophy": {
+    "description": "DAVWO requires a hyper-intelligent, clean financial-dashboard feel. The core app runs in a light theme using crisp white surfaces, soft pastel KPI cards, and brand-green accents. The landing/login hero uses a deep dark navy (#0a0f1c) with glowing green accents to create a high-tech 'intelligence engine' vibe.",
+    "emotion": "Trust, High-Tech Intelligence, Sustainable Growth, Precision",
+    "branding": "Green/blue/orange leaf+wave mark with 'DAVWO' wordmark in green. Green is primary action color."
+  },
+  "typography": {
+    "fonts": {
+      "heading": "Outfit, sans-serif",
+      "body": "Plus Jakarta Sans, sans-serif",
+      "mono": "JetBrains Mono, monospace"
+    },
+    "hierarchy": {
+      "h1": "text-5xl lg:text-6xl font-semibold tracking-tight text-slate-900 dark:text-white",
+      "h2": "text-3xl lg:text-4xl font-medium tracking-tight text-slate-900",
+      "h3": "text-xl sm:text-2xl font-medium tracking-tight",
+      "h4": "text-lg font-medium",
+      "body": "text-base text-slate-600 leading-relaxed",
+      "small": "text-sm text-slate-500",
+      "label": "text-xs font-semibold uppercase tracking-[0.2em] text-slate-500"
+    }
+  },
+  "colors": {
+    "css_variables_light": {
+      "--background": "210 40% 98%",
+      "--foreground": "222.2 84% 4.9%",
+      "--card": "0 0% 100%",
+      "--card-foreground": "222.2 84% 4.9%",
+      "--popover": "0 0% 100%",
+      "--popover-foreground": "222.2 84% 4.9%",
+      "--primary": "141 76% 36%",
+      "--primary-foreground": "210 40% 98%",
+      "--secondary": "223 47% 17%",
+      "--secondary-foreground": "210 40% 98%",
+      "--muted": "210 40% 96.1%",
+      "--muted-foreground": "215.4 16.3% 46.9%",
+      "--accent": "210 40% 96.1%",
+      "--accent-foreground": "222.2 47.4% 11.2%",
+      "--destructive": "0 84.2% 60.2%",
+      "--destructive-foreground": "210 40% 98%",
+      "--border": "214.3 31.8% 91.4%",
+      "--input": "214.3 31.8% 91.4%",
+      "--ring": "141 76% 36%",
+      "--radius": "1rem",
+      "--mint-bg": "152 60% 94%",
+      "--sky-bg": "204 80% 95%",
+      "--lavender-bg": "270 60% 95%",
+      "--peach-bg": "20 80% 95%",
+      "--amber-bg": "43 100% 95%"
+    },
+    "css_variables_dark": {
+      "--background": "223 47% 7%",
+      "--foreground": "210 40% 98%",
+      "--card": "223 47% 10%",
+      "--card-foreground": "210 40% 98%",
+      "--primary": "141 76% 46%",
+      "--primary-foreground": "223 47% 7%",
+      "--border": "223 47% 15%",
+      "--input": "223 47% 15%",
+      "--muted": "223 47% 15%",
+      "--muted-foreground": "215 20.2% 65.1%"
+    }
+  },
+  "layout_and_spacing": {
+    "global_spacing": "Generous on marketing pages (p-12 to p-24), dense and precise on dashboard (p-4 to p-6).",
+    "dashboard_sidebar": "w-64 border-r border-border bg-white, navigation links have rounded-md, active state has bg-primary/10 and text-primary.",
+    "cards": "rounded-xl to rounded-2xl, subtle shadow-sm. No borders on inner pastel cards.",
+    "grid_system": "Bento-style for marketing. Control-room grid (tight gaps, col-span logic) for dashboard."
+  },
+  "components": {
+    "pastel_kpi_card": {
+      "container": "rounded-2xl p-5 shadow-sm transition-transform hover:-translate-y-1 hover:shadow-md relative overflow-hidden",
+      "backgrounds": "Use inline HSL or extend tailwind bg-mint, bg-sky, bg-lavender, bg-peach. (e.g. bg-[hsl(var(--mint-bg))])",
+      "content": "Top right pulse dot for live data (w-2 h-2 rounded-full bg-green-500 animate-pulse). Large numeric metric (text-3xl font-semibold tracking-tight text-slate-900). Chart sparkline or Phosphor icon at the bottom."
+    },
+    "dark_ani_panel": {
+      "container": "fixed right-0 top-0 h-full w-[400px] bg-[#0a0f1c] text-white p-6 shadow-2xl z-50 flex flex-col border-l border-white/10",
+      "header": "Flex row, AI glowing avatar, 'ANI™ Assistant' text, minimize/close buttons.",
+      "chat_bubbles": "User: bg-white/10 rounded-2xl p-3 text-sm. ANI: bg-transparent text-white border border-white/5 rounded-2xl p-4 text-sm with embedded Recharts data visualizations."
+    },
+    "ani_recommendation_card": {
+      "container": "bg-primary/5 border border-primary/20 rounded-xl p-4 relative overflow-hidden",
+      "decoration": "Sparkle/Star icon in primary color in top left. Text is dark slate. Action button is primary.",
+      "interaction": "Pulse animation on the icon. Hover brightens the background to primary/10."
+    },
+    "status_pill": {
+      "base": "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border",
+      "success": "bg-green-50 text-green-700 border-green-200",
+      "warning": "bg-amber-50 text-amber-700 border-amber-200",
+      "critical": "bg-red-50 text-red-700 border-red-200"
+    },
+    "charts": {
+      "styling": "Use Recharts. Line charts: smooth curves, no grid lines (or very faint horizontal only), stroke width 2. Donut charts: rounded corners on segments, large inner radius (80%) for minimal ring look.",
+      "colors": "Primary green, secondary navy, and soft pastels for categories."
+    },
+    "demo_scenario_card": {
+      "container": "bg-white border border-border rounded-xl p-6 hover:shadow-lg transition-all cursor-pointer group",
+      "content": "Icon in a colored rounded square, Title text-xl font-semibold, description text-slate-500, metric outcome in bold green."
+    }
+  },
+  "motion": {
+    "kpi_counter": "Framer motion `useSpring` and `useTransform` for number counting up on mount.",
+    "live_pulse": "CSS animation `animate-pulse` on a 8px rounded-full div.",
+    "chart_entrance": "Framer motion `initial={{ opacity: 0, y: 20 }}` staggered by 0.1s for dashboard elements.",
+    "ani_typing": "Three small dots bouncing sequentially using Framer motion."
+  },
+  "icons": {
+    "library": "lucide-react (fallback to @phosphor-icons/react for dense dashboard needs)",
+    "style": "Stroke width 1.5, slightly rounded."
+  },
+  "media": {
+    "image_urls": [
+      {
+        "url": "https://images.unsplash.com/photo-1593941707882-a5bba14938c7?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1ODF8MHwxfHNlYXJjaHwyfHxldiUyMGNoYXJnaW5nJTIwc3RhdGlvbiUyMG1vZGVybnxlbnwwfHx8fDE3ODEyOTYzOTJ8MA&ixlib=rb-4.1.0&q=85",
+        "category": "Hero/Background",
+        "description": "EV Charging plugged in, use for landing page infrastructure imagery or case studies."
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1514439827219-9137a0b99245?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzOTB8MHwxfHNlYXJjaHwzfHxuZW9uJTIwY2l0eSUyMHNreWxpbmUlMjBkYXJrfGVufDB8fHx8MTc4MTI5NjM5Mnww&ixlib=rb-4.1.0&q=85",
+        "category": "Landing Page Dark Hero",
+        "description": "Neon city skyline dark. Use as a heavily darkened background image (opacity 20-30%) behind the ANI diagram on the left split layout."
+      }
+    ]
+  },
+  "instructions_to_main_agent": [
+    "Extend tailwind.config.js to include specific pastel colors (mint, sky, lavender, peach) and map HSL variables.",
+    "Install Google Fonts (Outfit, Plus Jakarta Sans) and apply globally.",
+    "Use standard Shadcn components for tables, tabs, inputs, and dialogs. Customize their border radius to rounded-xl/2xl where appropriate.",
+    "Ensure every single interactive element (buttons, tabs, inputs, cards that open modals) has a semantic data-testid attribute.",
+    "Implement real-time simulation using `useEffect` with `setInterval` to randomly increment/decrement KPI values slightly every 5 seconds to show 'live' data.",
+    "Build the dashboard with a clean white sidebar, and ensure active states use text-primary (green) and bg-primary/10.",
+    "Use framer-motion for page transitions and staggering child elements in the dashboard.",
+    "Create the 'Demo Module' pages as a seamless journey accessible from the landing page. Make sure all specified routes are linked.",
+    "For the ANI panel/chat, ensure it floats above the UI on the right side and uses the dark color palette (#0a0f1c)."
+  ]
+}

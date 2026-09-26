@@ -1,0 +1,77 @@
+{
+  "appShell": {
+    "loading": "Chargement…",
+    "copyright": "© {year} Davwo Energy Ltd. Tous droits réservés.",
+    "dataRefreshes": "Les données s'actualisent automatiquement",
+    "live": "En direct"
+  },
+  "sidebar": {
+    "tagline": "Intelligence d'infrastructure IA",
+    "nav": {
+      "dashboard": "Tableau de bord",
+      "monitoring": "Surveillance",
+      "map": "Carte du réseau",
+      "analytics": "Analytique",
+      "forecasting": "Prévisions",
+      "alerts": "Alertes",
+      "assets": "Actifs",
+      "marketplace": "Marketplace",
+      "reports": "Rapports",
+      "askAni": "Demander à ANI",
+      "demo": "Module de démo",
+      "settings": "Paramètres"
+    },
+    "platformStatus": "État de la plateforme",
+    "allSystemsOperational": "Tous les systèmes sont opérationnels",
+    "systemUptime": "Disponibilité du système",
+    "dataSync": "Synchronisation des données",
+    "healthy": "Optimal"
+  },
+  "topBar": {
+    "openMenu": "Ouvrir le menu",
+    "notifications": "Notifications",
+    "notificationsUnread": "Notifications ({count} non lues)",
+    "unreadCount": "{count} non lues",
+    "allCaughtUp": "Vous êtes à jour.",
+    "emailDigest": "M'envoyer ce résumé par e-mail",
+    "viewAllAlerts": "Voir toutes les alertes",
+    "help": "Aide",
+    "user": "Utilisateur",
+    "settings": "Paramètres",
+    "demoModule": "Module de démo",
+    "logOut": "Déconnexion",
+    "digestEmailed": "Résumé envoyé par e-mail",
+    "emailNotConfigured": "L'e-mail n'est pas encore configuré",
+    "digestFailed": "Impossible d'envoyer le résumé — veuillez réessayer.",
+    "acknowledged": "confirmée",
+    "minutesAgo": "il y a {count} min",
+    "hoursAgo": "il y a {count} h"
+  },
+  "login": {
+    "brandHeadline": "L'intelligence des infrastructures, <highlight>visualisée</highlight>.",
+    "brandSubcopy": "Données énergétiques réelles du Royaume-Uni — tarifs en direct, intensité carbone du réseau et prévisions météo — en une seule vue opérationnelle.",
+    "copyright": "© {year} Davwo Energy Ltd.",
+    "signIn": "Se connecter",
+    "subtitle": "Accédez à votre tableau de bord d'infrastructure ANI™.",
+    "email": "E-mail",
+    "emailPlaceholder": "vous@davwo.com",
+    "password": "Mot de passe",
+    "showPassword": "Afficher le mot de passe",
+    "hidePassword": "Masquer le mot de passe",
+    "signingIn": "Connexion en cours…",
+    "newToDavwo": "Nouveau chez Davwo ?",
+    "startYourPilot": "Démarrer votre pilote",
+    "orTryDemo": "Ou essayer un rôle de démo",
+    "backToHome": "← Retour à l'accueil",
+    "welcomeBack": "Content de vous revoir !",
+    "invalidCredentials": "Identifiants invalides",
+    "signedInAs": "Connecté en tant que {role}",
+    "demoLoginFailed": "Échec de la connexion de démonstration",
+    "loading": "Chargement…",
+    "roles": {
+      "admin": { "label": "Admin", "description": "Accès complet aux paramètres, utilisateurs et analyses." },
+      "operator": { "label": "Opérateur", "description": "Exploitation, surveillance et performance." },
+      "pilot": { "label": "Utilisateur pilote", "description": "Accès limité pour les programmes pilotes." }
+    }
+  }
+}

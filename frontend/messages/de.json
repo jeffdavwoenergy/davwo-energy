@@ -1,0 +1,77 @@
+{
+  "appShell": {
+    "loading": "Wird geladen…",
+    "copyright": "© {year} Davwo Energy Ltd. Alle Rechte vorbehalten.",
+    "dataRefreshes": "Daten werden automatisch aktualisiert",
+    "live": "Live"
+  },
+  "sidebar": {
+    "tagline": "KI-Infrastrukturintelligenz",
+    "nav": {
+      "dashboard": "Übersicht",
+      "monitoring": "Überwachung",
+      "map": "Netzwerkkarte",
+      "analytics": "Analytik",
+      "forecasting": "Prognose",
+      "alerts": "Warnungen",
+      "assets": "Anlagen",
+      "marketplace": "Marktplatz",
+      "reports": "Berichte",
+      "askAni": "ANI fragen",
+      "demo": "Demo-Modul",
+      "settings": "Einstellungen"
+    },
+    "platformStatus": "Plattformstatus",
+    "allSystemsOperational": "Alle Systeme betriebsbereit",
+    "systemUptime": "Systemlaufzeit",
+    "dataSync": "Datensynchronisierung",
+    "healthy": "Fehlerfrei"
+  },
+  "topBar": {
+    "openMenu": "Menü öffnen",
+    "notifications": "Benachrichtigungen",
+    "notificationsUnread": "Benachrichtigungen ({count} ungelesen)",
+    "unreadCount": "{count} ungelesen",
+    "allCaughtUp": "Alles erledigt.",
+    "emailDigest": "Diese Zusammenfassung per E-Mail senden",
+    "viewAllAlerts": "Alle Warnungen anzeigen",
+    "help": "Hilfe",
+    "user": "Benutzer",
+    "settings": "Einstellungen",
+    "demoModule": "Demo-Modul",
+    "logOut": "Abmelden",
+    "digestEmailed": "Zusammenfassung per E-Mail gesendet",
+    "emailNotConfigured": "E-Mail ist noch nicht konfiguriert",
+    "digestFailed": "Die Zusammenfassung konnte nicht gesendet werden — bitte versuchen Sie es erneut.",
+    "acknowledged": "bestätigt",
+    "minutesAgo": "vor {count} Min.",
+    "hoursAgo": "vor {count} Std."
+  },
+  "login": {
+    "brandHeadline": "Infrastrukturintelligenz, <highlight>visualisiert</highlight>.",
+    "brandSubcopy": "Echte UK-Energiedaten — Live-Tarife, Netz-CO₂-Intensität und wetterbasierte Prognosen — in einer einzigen Betriebsansicht.",
+    "copyright": "© {year} Davwo Energy Ltd.",
+    "signIn": "Anmelden",
+    "subtitle": "Greifen Sie auf Ihr ANI™-Infrastruktur-Dashboard zu.",
+    "email": "E-Mail",
+    "emailPlaceholder": "sie@davwo.com",
+    "password": "Passwort",
+    "showPassword": "Passwort anzeigen",
+    "hidePassword": "Passwort verbergen",
+    "signingIn": "Anmeldung läuft…",
+    "newToDavwo": "Neu bei Davwo?",
+    "startYourPilot": "Pilotprojekt starten",
+    "orTryDemo": "Oder eine Demo-Rolle testen",
+    "backToHome": "← Zurück zur Startseite",
+    "welcomeBack": "Willkommen zurück!",
+    "invalidCredentials": "Ungültige Anmeldedaten",
+    "signedInAs": "Angemeldet als {role}",
+    "demoLoginFailed": "Demo-Anmeldung fehlgeschlagen",
+    "loading": "Wird geladen…",
+    "roles": {
+      "admin": { "label": "Admin", "description": "Vollzugriff auf Einstellungen, Benutzer und Analysen." },
+      "operator": { "label": "Betreiber", "description": "Betrieb, Überwachung und Leistung." },
+      "pilot": { "label": "Pilotnutzer", "description": "Eingeschränkter Zugriff für Pilotprogramme." }
+    }
+  }
+}

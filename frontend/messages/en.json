@@ -1,0 +1,77 @@
+{
+  "appShell": {
+    "loading": "Loading…",
+    "copyright": "© {year} Davwo Energy Ltd. All rights reserved.",
+    "dataRefreshes": "Data refreshes automatically",
+    "live": "Live"
+  },
+  "sidebar": {
+    "tagline": "AI Infrastructure Intelligence",
+    "nav": {
+      "dashboard": "Dashboard",
+      "monitoring": "Monitoring",
+      "map": "Network Map",
+      "analytics": "Analytics",
+      "forecasting": "Forecasting",
+      "alerts": "Alerts",
+      "assets": "Assets",
+      "marketplace": "Marketplace",
+      "reports": "Reports",
+      "askAni": "Ask ANI",
+      "demo": "Demo Module",
+      "settings": "Settings"
+    },
+    "platformStatus": "Platform Status",
+    "allSystemsOperational": "All Systems Operational",
+    "systemUptime": "System Uptime",
+    "dataSync": "Data Sync",
+    "healthy": "Healthy"
+  },
+  "topBar": {
+    "openMenu": "Open menu",
+    "notifications": "Notifications",
+    "notificationsUnread": "Notifications ({count} unread)",
+    "unreadCount": "{count} unread",
+    "allCaughtUp": "You're all caught up.",
+    "emailDigest": "Email me this digest",
+    "viewAllAlerts": "View all alerts",
+    "help": "Help",
+    "user": "User",
+    "settings": "Settings",
+    "demoModule": "Demo Module",
+    "logOut": "Log out",
+    "digestEmailed": "Digest emailed to you",
+    "emailNotConfigured": "Email isn't configured yet",
+    "digestFailed": "Could not send the digest — please try again.",
+    "acknowledged": "acknowledged",
+    "minutesAgo": "{count}m ago",
+    "hoursAgo": "{count}h ago"
+  },
+  "login": {
+    "brandHeadline": "Infrastructure intelligence, <highlight>visualised</highlight>.",
+    "brandSubcopy": "Real UK energy data — live tariffs, grid carbon and weather-driven forecasts — in one operational view.",
+    "copyright": "© {year} Davwo Energy Ltd.",
+    "signIn": "Sign in",
+    "subtitle": "Access your ANI™ infrastructure dashboard.",
+    "email": "Email",
+    "emailPlaceholder": "you@davwo.com",
+    "password": "Password",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
+    "signingIn": "Signing in…",
+    "newToDavwo": "New to Davwo?",
+    "startYourPilot": "Start your pilot",
+    "orTryDemo": "Or try a demo role",
+    "backToHome": "← Back to home",
+    "welcomeBack": "Welcome back!",
+    "invalidCredentials": "Invalid credentials",
+    "signedInAs": "Signed in as {role}",
+    "demoLoginFailed": "Demo login failed",
+    "loading": "Loading…",
+    "roles": {
+      "admin": { "label": "Admin", "description": "Full access to settings, users and analytics." },
+      "operator": { "label": "Operator", "description": "Operations, monitoring and performance." },
+      "pilot": { "label": "Pilot User", "description": "Limited access for pilot programmes." }
+    }
+  }
+}

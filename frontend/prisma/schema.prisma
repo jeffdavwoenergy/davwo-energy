@@ -1,0 +1,264 @@
+// DAVWO / ANI — Postgres schema (Supabase). Replaces the never-live MongoDB
+// design from the MVP build; the same graceful-degradation shape (real DB
+// when DATABASE_URL is set, in-memory fallback otherwise) is preserved in
+// application code, not here.
+//
+// Prisma 7 moved connection URLs out of this file: the CLI (migrate/
+// introspect) reads DIRECT_URL from prisma.config.ts at the repo root, and
+// the app's runtime connection is wired through the @prisma/adapter-pg
+// driver adapter in src/lib/server/prisma.ts using DATABASE_URL (Supabase's
+// pooled, port-6543 connection string — the direct one is for migrations
+// only).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  admin
+  operator
+  pilot
+}
+
+model User {
+  id             String   @id
+  email          String   @unique
+  name           String
+  role           UserRole
+  orgId          String
+  passwordHash   String
+  company        String?
+  jobTitle       String?
+  avatarInitials String?
+  preferences    Json?
+  createdAt      DateTime @default(now())
+
+  @@index([orgId])
+  @@map("users")
+}
+
+model Org {
+  id        String   @id
+  name      String
+  slug      String   @unique
+  region    String?
+  market    String   @default("uk")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("orgs")
+}
+
+enum AssetType {
+  EV_CHARGER @map("EV Charger")
+  BATTERY    @map("Battery")
+  SOLAR      @map("Solar")
+}
+
+enum AssetStatus {
+  healthy
+  degraded
+  down
+}
+
+model UserAsset {
+  id              String      @id
+  orgId           String
+  name            String
+  type            AssetType
+  site            String
+  capacityKw      Float
+  status          AssetStatus @default(healthy)
+  utilisationPct  Float       @default(0)
+  currentLoadKw   Float       @default(0)
+  locationLat     Float?
+  locationLng     Float?
+  manufacturer    String?
+  model           String?
+  serialNumber    String?
+  installedAt     DateTime?
+  productId       String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([orgId])
+  @@map("user_assets")
+}
+
+/** Real per-asset time-series data — distinct from src/lib/ani/dataGenerator.ts's
+ * synthetic Reading type, which is a deterministic, unpersisted generator for
+ * the engine-modelled EV chargers only. This is the actual ingestion path for
+ * real customer asset telemetry (Week 4: Energy Data Foundation). */
+model AssetReading {
+  id         String   @id @default(uuid())
+  assetId    String
+  orgId      String
+  powerKw    Float?
+  energyKwh  Float?
+  recordedAt DateTime
+  createdAt  DateTime @default(now())
+
+  @@index([assetId, recordedAt])
+  @@index([orgId])
+  @@map("asset_readings")
+}
+
+enum AlertStatus {
+  active
+  acknowledged
+  resolved
+}
+
+model AlertState {
+  orgId          String
+  alertId        String
+  status         AlertStatus
+  acknowledgedAt DateTime?
+  resolvedAt     DateTime?
+
+  @@id([orgId, alertId])
+  @@map("alert_states")
+}
+
+enum LeadStatus {
+  new
+  responded
+  accepted
+  declined
+}
+
+/** Procurement workflow state machine: new -> responded (supplier) ->
+ * accepted/declined (buyer). Additive columns on an already-live table —
+ * NOT NULL with a default, so every existing row backfills to "new"
+ * without a data migration. */
+model VendorLead {
+  id          String     @id @default(uuid())
+  vendorId    String
+  name        String
+  email       String
+  message     String
+  orgId       String
+  userId      String
+  status      LeadStatus @default(new)
+  response    String?
+  respondedAt DateTime?
+  decidedAt   DateTime?
+  createdAt   DateTime   @default(now())
+
+  @@index([orgId])
+  @@index([vendorId])
+  @@map("vendor_leads")
+}
+
+model Product {
+  id          String   @id @default(uuid())
+  vendorId    String
+  name        String
+  category    String
+  summary     String
+  description String
+  specs       Json?
+  priceNote   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  documents     ProductDocument[]
+  knowledgeBase KnowledgeBaseEntry[]
+
+  @@index([vendorId])
+  @@index([category])
+  @@map("products")
+}
+
+/** A known issue + how to resolve it, per product — added by the platform
+ * team or the supplier who owns the product (same ownership model as
+ * ProductDocument). Grounds ANI's support answers the same way uploaded
+ * manuals ground its spec answers: a documented fix beats a guess. */
+model KnowledgeBaseEntry {
+  id         String   @id @default(uuid())
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  issue      String
+  symptoms   String?
+  resolution String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([productId])
+  @@map("knowledgebase_entries")
+}
+
+model ProductDocument {
+  id            String   @id @default(uuid())
+  productId     String
+  product       Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  filename      String
+  mimeType      String
+  sizeBytes     Int
+  data          Bytes
+  extractedText String?
+  createdAt     DateTime @default(now())
+
+  @@index([productId])
+  @@map("product_documents")
+}
+
+model PilotProfile {
+  id            String   @id
+  orgId         String
+  organisation  String
+  profile       Json
+  workspace     Json
+  createdAt     DateTime @default(now())
+
+  @@index([orgId])
+  @@map("pilot_profiles")
+}
+
+enum ChatRole {
+  user
+  assistant
+}
+
+/** One continuous ANI thread per user (not multiple named conversations) —
+ * matches the existing single-assistant UX in src/lib/ani/assistant.ts.
+ * content is the full { text?, blocks?, mode? } payload as JSON, so a
+ * reloaded conversation renders with the exact same charts/tables/KPIs it
+ * had live, not just a flattened text transcript. Purely additive table;
+ * doesn't touch or reference any existing model. */
+model ChatMessage {
+  id        String   @id @default(uuid())
+  orgId     String
+  userId    String
+  role      ChatRole
+  content   Json
+  createdAt DateTime @default(now())
+
+  @@index([orgId, userId, createdAt])
+  @@map("chat_messages")
+}
+
+/** A real, self-service supplier account — deliberately separate from User
+ * (customer org accounts): no orgId, no admin/operator/pilot role, its own
+ * auth. Mirrors the static VENDORS list in marketplace.ts the same way
+ * orgs.ts mirrors the static demo TENANTS — a supplier's own listings live
+ * under vendorId = supplier.id, resolved by resolveVendor() alongside the
+ * curated static vendors. */
+model Supplier {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  companyName  String
+  category     String
+  region       String?
+  website      String?
+  verified     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("suppliers")
+}

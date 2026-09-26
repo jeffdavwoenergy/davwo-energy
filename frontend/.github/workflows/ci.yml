@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main, staging]
+  push:
+    branches: [main, staging]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Type-check + build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+        env:
+          # postinstall runs `prisma generate`, which only reads the schema
+          # (no live connection needed) — but prisma.config.ts's env("DIRECT_URL")
+          # throws if the var is entirely absent, so a placeholder is required
+          # even though nothing here ever connects to it.
+          DIRECT_URL: postgresql://ci:placeholder@localhost:5432/ci
+      - name: Type-check
+        run: npx tsc --noEmit
+      - name: Lint
+        run: npm run lint
+      - name: Unit tests + coverage
+        run: npm run test:cov
+      - name: Build
+        run: npm run build
+        env:
+          JWT_SECRET: ci-build-secret

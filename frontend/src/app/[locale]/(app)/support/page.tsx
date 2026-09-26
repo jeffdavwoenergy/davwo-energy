@@ -98,7 +98,7 @@ export default function SupportPage() {
 
       <div className="grid lg:grid-cols-3 gap-4 mt-4">
         {/* Open ticket */}
-        <GlowCard className="p-6 lg:col-span-1" defaultGlow>
+        <GlowCard className="p-6 lg:col-span-1">
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             <LifeBuoy size={14} /> Your tickets
           </div>

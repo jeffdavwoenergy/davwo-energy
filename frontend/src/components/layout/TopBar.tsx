@@ -62,7 +62,7 @@ export default function TopBar({ onOpenMobileNav }: { onOpenMobileNav?: () => vo
       : "U");
 
   return (
-    <div className="bg-background/80 backdrop-blur sticky top-0 z-30 border-b border-border px-4 sm:px-6 lg:px-8 py-3 sm:py-4 flex items-center justify-between gap-3">
+    <div className="bg-card sticky top-0 z-30 px-4 sm:px-6 lg:px-8 py-3 sm:py-4 flex items-center justify-between gap-3">
       <div className="flex items-center gap-2 lg:flex-1">
         <button
           onClick={onOpenMobileNav}

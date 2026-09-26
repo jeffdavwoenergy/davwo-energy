@@ -70,7 +70,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <main className="flex-1 px-4 sm:px-6 lg:px-8 py-4 sm:py-6 overflow-x-hidden">
           {children}
         </main>
-        <footer className="px-4 sm:px-6 lg:px-8 py-4 text-xs text-muted-foreground border-t border-border flex items-center justify-between flex-wrap gap-2">
+        <footer className="px-4 sm:px-6 lg:px-8 py-4 text-xs text-muted-foreground flex items-center justify-between flex-wrap gap-2">
           <span>{t("copyright", { year: 2026 })}</span>
           <span className="flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-soft-pulse" />

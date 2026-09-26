@@ -234,7 +234,7 @@ export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   return (
     <aside
-      className={`hidden lg:flex shrink-0 border-r border-border flex-col h-screen sticky top-0 transition-all duration-300 ${
+      className={`hidden lg:flex shrink-0 flex-col h-screen sticky top-0 transition-all duration-300 ${
         collapsed ? "w-20" : "w-64"
       }`}
     >

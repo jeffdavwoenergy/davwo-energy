@@ -135,43 +135,6 @@ export default function TopBar({ onOpenMobileNav }: { onOpenMobileNav?: () => vo
         >
           <HelpCircle size={18} />
         </button>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button className="flex items-center gap-2 hover:bg-accent rounded-full pr-1 sm:pr-2 pl-1 py-1 transition">
-              <div className="w-8 h-8 rounded-full bg-emerald-500 text-white text-xs font-semibold flex items-center justify-center shrink-0">
-                {initials}
-              </div>
-              <div className="text-left hidden md:block">
-                <div className="text-sm font-semibold text-foreground leading-tight max-w-[140px] truncate">
-                  {user?.name || t("user")}
-                </div>
-                <div className="text-[10px] text-muted-foreground">{user?.job_title || user?.role}</div>
-              </div>
-              <ChevronDown size={14} className="text-muted-foreground hidden md:block" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel>
-              <div className="font-semibold">{user?.name}</div>
-              <div className="text-xs text-muted-foreground truncate">{user?.email}</div>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            {user?.role === "admin" && (
-              <DropdownMenuItem onClick={() => router.push("/settings")}>{t("settings")}</DropdownMenuItem>
-            )}
-            <DropdownMenuItem onClick={() => router.push("/demo")}>{t("demoModule")}</DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              className="text-red-600"
-              onClick={() => {
-                logout();
-                router.push("/login");
-              }}
-            >
-              <LogOut size={14} className="mr-2" /> {t("logOut")}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
       </div>
     </div>
   );

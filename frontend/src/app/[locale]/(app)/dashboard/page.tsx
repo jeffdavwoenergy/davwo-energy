@@ -107,7 +107,7 @@ export default function DashboardPage() {
           ? Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-[140px]" />)
           : (
             <>
-              <KpiCard label="Active Chargers" value={formatNumber(m.active_chargers)} icon={Plug} tone="mint" delta={m.vs_yesterday?.active_chargers} />
+              <KpiCard label="Active Chargers" value={formatNumber(m.active_chargers)} icon={Plug} tone="mint" delta={m.vs_yesterday?.active_chargers} defaultGlow />
               <KpiCard label="Charging Sessions" value={formatNumber(m.charging_sessions)} icon={Zap} tone="sky" delta={m.vs_yesterday?.charging_sessions} />
               <KpiCard label="Connected Vehicles" value={formatNumber(m.connected_vehicles)} icon={Car} tone="lavender" delta={m.vs_yesterday?.connected_vehicles} />
               <KpiCard label="Avg Cost / kWh" value={formatGBP(m.average_cost_per_kwh, { maximumFractionDigits: 3, minimumFractionDigits: 2 })} icon={PoundSterling} tone="peach" delta={m.vs_yesterday?.average_cost} invertDelta live={m.data_mode === "live"} />

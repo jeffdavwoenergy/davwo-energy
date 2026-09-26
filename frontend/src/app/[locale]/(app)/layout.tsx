@@ -22,6 +22,19 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const t = useTranslations("appShell");
 
+  // The dashboard uses a light surface (matching the reference design). Force
+  // the light palette while this shell is mounted so portalled popovers/menus
+  // (rendered at <body>, outside the layout tree) match too; restore the dark
+  // theme on unmount (login / marketing pages keep their dark treatment).
+  useEffect(() => {
+    const html = document.documentElement;
+    const hadDark = html.classList.contains("dark");
+    html.classList.remove("dark");
+    return () => {
+      if (hadDark) html.classList.add("dark");
+    };
+  }, []);
+
   useEffect(() => {
     if (booting) return;
     if (!user) {

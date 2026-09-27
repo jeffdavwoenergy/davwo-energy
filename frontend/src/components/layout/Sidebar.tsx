@@ -116,14 +116,20 @@ export function SidebarContents({
               href={to}
               onClick={onNavigate}
               title={isCollapsed ? t(`nav.${key}`) : undefined}
-              className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm transition-all ${
+              className={`relative overflow-hidden flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm transition-all ${
                 active
-                  ? "bg-emerald-500 text-white font-medium shadow-sm"
+                  ? "text-white font-medium shadow-sm"
                   : "text-muted-foreground hover:bg-accent hover:text-foreground font-normal"
               } ${isCollapsed ? "justify-center px-2" : ""}`}
             >
-              <Icon size={18} strokeWidth={1.8} className="shrink-0" />
-              {!isCollapsed && <span className="truncate">{t(`nav.${key}`)}</span>}
+              {active && (
+                <>
+                  <span className="absolute inset-0 bg-map-dark" />
+                  <span className="absolute inset-0 bg-grain" />
+                </>
+              )}
+              <Icon size={18} strokeWidth={1.8} className="shrink-0 relative z-10" />
+              {!isCollapsed && <span className="truncate relative z-10">{t(`nav.${key}`)}</span>}
             </Link>
           );
         })}
@@ -140,8 +146,10 @@ export function SidebarContents({
                 isCollapsed ? "justify-center px-2" : ""
               }`}
             >
-              <div className="w-8 h-8 rounded-full bg-emerald-500 text-white text-xs font-semibold flex items-center justify-center shrink-0">
-                {initials}
+              <div className="relative overflow-hidden w-8 h-8 rounded-full text-white text-xs font-semibold flex items-center justify-center shrink-0">
+                <span className="absolute inset-0 bg-map-dark" />
+                <span className="absolute inset-0 bg-grain" />
+                <span className="relative z-10">{initials}</span>
               </div>
               {!isCollapsed && (
                 <div className="min-w-0 text-left">
@@ -177,13 +185,19 @@ export function SidebarContents({
           href="/support"
           onClick={onNavigate}
           title={isCollapsed ? "Support" : undefined}
-          className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm transition-all ${
+          className={`relative overflow-hidden w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm transition-all ${
             supportActive
-              ? "bg-emerald-500 text-white font-medium"
+              ? "text-white font-medium"
               : "text-muted-foreground hover:bg-accent hover:text-foreground"
           } ${isCollapsed ? "justify-center px-2" : ""}`}
         >
-          <span className="relative shrink-0 flex items-center justify-center">
+          {supportActive && (
+            <>
+              <span className="absolute inset-0 bg-map-dark" />
+              <span className="absolute inset-0 bg-grain" />
+            </>
+          )}
+          <span className="relative z-10 shrink-0 flex items-center justify-center">
             <HelpCircle size={18} strokeWidth={1.8} />
             {unreadTickets > 0 && (
               <span className="absolute -top-1.5 -left-1.5 w-3.5 h-3.5 bg-rose-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
@@ -191,7 +205,7 @@ export function SidebarContents({
               </span>
             )}
           </span>
-          {!isCollapsed && <span className="truncate">Support</span>}
+          {!isCollapsed && <span className="truncate relative z-10">Support</span>}
         </Link>
 
         {/* Collapse toggle (desktop) */}

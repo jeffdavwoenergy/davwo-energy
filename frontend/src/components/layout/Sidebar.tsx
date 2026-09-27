@@ -118,7 +118,7 @@ export function SidebarContents({
               title={isCollapsed ? t(`nav.${key}`) : undefined}
               className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm transition-all ${
                 active
-                  ? "bg-secondary text-secondary-foreground font-medium shadow-sm"
+                  ? "bg-emerald-500 text-white font-medium shadow-sm"
                   : "text-muted-foreground hover:bg-accent hover:text-foreground font-normal"
               } ${isCollapsed ? "justify-center px-2" : ""}`}
             >
@@ -179,7 +179,7 @@ export function SidebarContents({
           title={isCollapsed ? "Support" : undefined}
           className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm transition-all ${
             supportActive
-              ? "bg-secondary text-secondary-foreground font-medium"
+              ? "bg-emerald-500 text-white font-medium"
               : "text-muted-foreground hover:bg-accent hover:text-foreground"
           } ${isCollapsed ? "justify-center px-2" : ""}`}
         >

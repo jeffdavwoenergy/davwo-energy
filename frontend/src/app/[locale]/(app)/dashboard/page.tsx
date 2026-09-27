@@ -139,7 +139,10 @@ export default function DashboardPage() {
 
       {/* Smart charging window — best price + carbon */}
       {sw?.available && (
-        <div className="mt-4 rounded-2xl bg-gradient-to-br from-navy to-navy-2 text-white p-5 flex flex-col sm:flex-row sm:items-center gap-5">
+        <div className="mt-4 relative overflow-hidden rounded-2xl bg-navy text-white p-5">
+          <div className="absolute inset-0 bg-map-dark" />
+          <div className="absolute inset-0 bg-grain" />
+          <div className="relative z-10 flex flex-col sm:flex-row sm:items-center gap-5">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-xl bg-emerald-500/20 text-emerald-300 flex items-center justify-center">
               <Clock size={24} />
@@ -166,6 +169,7 @@ export default function DashboardPage() {
               <div className="text-lg font-semibold">{sw.carbon_gco2}<span className="text-xs text-slate-400"> gCO₂/kWh</span></div>
               <div className="text-xs text-emerald-300">{Math.abs(sw.vs_avg_carbon_pct ?? 0)}% {(sw.vs_avg_carbon_pct ?? 0) <= 0 ? "cleaner" : "dirtier"} vs avg</div>
             </div>
+          </div>
           </div>
         </div>
       )}
@@ -260,7 +264,10 @@ export default function DashboardPage() {
           )}
         </Panel>
 
-        <div className="bg-gradient-to-br from-navy to-navy-2 text-white rounded-2xl shadow-sm p-5 flex flex-col">
+        <div className="relative overflow-hidden bg-navy text-white rounded-2xl shadow-sm p-5 flex flex-col">
+          <div className="absolute inset-0 bg-map-dark" />
+          <div className="absolute inset-0 bg-grain" />
+          <div className="relative z-10 flex flex-col flex-1">
           <div className="flex items-center gap-2 text-emerald-300 text-xs font-semibold uppercase tracking-wider">
             <Lightbulb size={14} /> ANI™ Recommendation
           </div>
@@ -278,6 +285,7 @@ export default function DashboardPage() {
               </div>
             </div>
           )}
+          </div>
         </div>
       </div>
 

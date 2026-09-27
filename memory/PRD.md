@@ -42,8 +42,21 @@ User will add Supabase + real supplier auth/listings soon; keep in-memory mock f
   - Testing agent: in-app marketplace 100% pass (iteration_1.json). Public pages smoke-tested (render +
     navigation OK; reuse identical components).
 
+## Landing page revamp (2026-09-27)
+- Rebuilt the public landing page (`src/app/[locale]/page.tsx`, now a client component) to match the
+  attached "Davwo clean-energy marketplace & AI matching" repo. New light-theme sections in
+  `src/components/landing/`: `DavwoHero` (auto-rotating clean-energy hero), `CleanEnergyCardCarousel`
+  (Tesla-style scroll cards), `PopularListings`, `TasteBanner`, `HowDavwoWorks` (4 cards + case-study
+  modal), `ShowcaseGallery`, `LandingFooter`. Data in `landingData.ts`; images copied to `public/landing/`.
+- **Nav kept EXACTLY the same** as before (white DAVWO logo + Marketplace + Sign in on a navy bar).
+- **Popular Marketplace Listings** uses REAL marketplace products (first 4 of `MP_PRODUCTS`) rendered with
+  the existing marketplace `ProductCard` (not the repo card style), linking to `/products/{id}`.
+- CTAs wired to existing routes: Join/See More/Order Now/Learn More → `/products`; Become a Supplier →
+  `/supplier/signup`. (Repo's AI-matcher / listing-detail / auth / supplier modals were NOT ported.)
+- Card copy is placeholder from the repo (user will refine later).
+
 ## Backlog / Next
-- **P1 Landing page revamp** — user flagged for later ("I'll come to the landing page").
+- **P1 Landing copy** — user will specify final card/hero copy later.
 - **P1 Supplier portal** — supplier login to list products + monitor enquiries/analytics (user plans this).
 - **P1 Supabase integration** — move marketplace catalogue + enquiries from mock/localStorage to a real DB.
 - **P2** a11y: close gallery/specs modals on Escape (minor, from code review).

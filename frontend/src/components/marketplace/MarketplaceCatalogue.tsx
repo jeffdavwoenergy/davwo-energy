@@ -17,7 +17,7 @@ const INITIAL: MpFilterState = {
   sortBy: "relevance",
 };
 
-export function MarketplaceCatalogue({ basePath = "/marketplace" }: { basePath?: string }) {
+export function MarketplaceCatalogue({ basePath = "/marketplace", heroDark = false }: { basePath?: string; heroDark?: boolean }) {
   const { isSaved, toggle } = useSavedProducts();
   const [filters, setFilters] = useState<MpFilterState>(INITIAL);
 
@@ -61,15 +61,33 @@ export function MarketplaceCatalogue({ basePath = "/marketplace" }: { basePath?:
   return (
     <div data-testid="marketplace-catalog">
       {/* Hero */}
-      <div className="rounded-2xl bg-gradient-to-br from-emerald-600 to-emerald-700 text-white p-6 sm:p-8 mb-6 relative overflow-hidden">
-        <div className="absolute -right-8 -top-8 w-40 h-40 rounded-full bg-white/10" />
-        <div className="absolute right-16 bottom-0 w-24 h-24 rounded-full bg-white/5" />
-        <div className="relative">
-          <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold mb-3">
+      <div
+        className={`rounded-2xl text-white p-6 sm:p-8 mb-6 relative overflow-hidden ${
+          heroDark ? "bg-navy" : "bg-gradient-to-br from-emerald-600 to-emerald-700"
+        }`}
+      >
+        {heroDark ? (
+          <>
+            <div className="absolute inset-0 bg-map-dark" />
+            <div className="absolute inset-0 bg-grain" />
+            <div className="absolute inset-0 rounded-2xl border border-white/10 pointer-events-none" />
+          </>
+        ) : (
+          <>
+            <div className="absolute -right-8 -top-8 w-40 h-40 rounded-full bg-white/10" />
+            <div className="absolute right-16 bottom-0 w-24 h-24 rounded-full bg-white/5" />
+          </>
+        )}
+        <div className="relative z-10">
+          <div
+            className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold mb-3 ${
+              heroDark ? "bg-emerald-500/15 border border-emerald-400/30 text-emerald-300" : "bg-white/15"
+            }`}
+          >
             <Store size={14} /> Davwo Marketplace
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Lease, finance or buy your energy hardware</h1>
-          <p className="mt-2 text-sm sm:text-base text-emerald-50 max-w-2xl">
+          <p className={`mt-2 text-sm sm:text-base max-w-2xl ${heroDark ? "text-slate-300" : "text-emerald-50"}`}>
             EV chargers, home batteries, solar, energy services and electric vehicles — supplied, installed and monitored by Davwo.
             Personalise your terms and see your monthly price instantly.
           </p>

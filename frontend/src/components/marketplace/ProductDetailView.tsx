@@ -27,7 +27,7 @@ import {
 } from "@/lib/marketplaceMock";
 import { useSavedProducts } from "@/lib/useSavedProducts";
 
-export function ProductDetailView({ product }: { product: MpProduct }) {
+export function ProductDetailView({ product, basePath = "/marketplace" }: { product: MpProduct; basePath?: string }) {
   const { isSaved, toggle } = useSavedProducts();
   const colors = product.colors ?? [];
 
@@ -183,11 +183,11 @@ export function ProductDetailView({ product }: { product: MpProduct }) {
       {/* Breadcrumb + heart */}
       <div className="flex items-center justify-between py-1 mb-4 text-[13px] text-slate-700">
         <nav className="flex items-center gap-1.5 overflow-x-auto whitespace-nowrap scrollbar-none font-medium">
-          <Link href="/marketplace" className="text-emerald-700 hover:underline">
+          <Link href={basePath} className="text-emerald-700 hover:underline">
             Marketplace
           </Link>
           <span className="text-slate-400">/</span>
-          <Link href="/marketplace" className="text-emerald-700 hover:underline">
+          <Link href={basePath} className="text-emerald-700 hover:underline">
             {product.categoryLabel}
           </Link>
           <span className="text-slate-400">/</span>

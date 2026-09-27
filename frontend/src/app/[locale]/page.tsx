@@ -38,7 +38,7 @@ export default function Landing() {
           </div>
           <div className="flex items-center gap-2">
             <Button asChild variant="ghost" className="text-white hover:bg-white/10 hover:text-white">
-              <Link href="/products">Search products</Link>
+              <Link href="/products">Marketplace</Link>
             </Button>
             <Button asChild variant="secondary" className="bg-white/10 text-white hover:bg-white/20">
               <Link href="/login">Sign in</Link>
@@ -75,7 +75,7 @@ export default function Landing() {
               <Link href="/login">Sign in / try a demo role</Link>
             </Button>
             <Button asChild variant="link" className="gap-2 px-2 py-3 h-auto text-slate-300 hover:text-white">
-              <Link href="/products">Or search technical &amp; renewable products →</Link>
+              <Link href="/products">Browse the Davwo Marketplace →</Link>
             </Button>
           </div>
 

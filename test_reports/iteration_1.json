@@ -1,0 +1,24 @@
+{
+  "summary": "Frontend-only E2E test of Davwo AutoTrader-style Marketplace. All 12 requested flows validated on preview URL at 1920x800. Demo Admin login works, /marketplace loads 11 product cards with hero + filter pills (correct per-category counts: EV Chargers 2, Battery 2, Solar 2, Energy Services 2, EV Vehicles 3, All 11). Search, sort, brand dropdown, reset, and Personal/Business VAT toggle all update the grid & results-count. Product detail (leapmotor-c10-ev + davwo-wallbox-pro) loads with configurator; Personal/Business, colour, mileage, term (24/36/48/60), upfront (1/3/6/9/12) and maintenance checkbox all live-update the VISIBLE pricing-monthly value and Order summary. Term 60 on leapmotor-c10-ev raises price (£354.63 -> £404.51). Upfront steps produce distinct prices (£1->£368.92, £3->£349.50, £6->£323.93, £9->£301.84, £12->£237.00). Reset-to-lowest returns to £237.00 baseline. Gallery modal + View-all-specs modal both open and close via their close buttons. start-application-btn opens enquiry-modal in application mode, contact-us-btn in contact mode; name+email are prefilled with logged-in user (Avery Stone / admin@davwo.com); submit shows Done button and closes modal. Heart save on card does NOT navigate (preventDefault verified). /en/products redirects to /en/marketplace and /en/products/{id} redirects to /en/marketplace/{id}. Sidebar Marketplace link href=/en/marketplace and highlights when active.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Product detail", "issues": ["Ask ANI floating button overlaps corner of floating pricing card (documented as expected in the request)."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Gallery/Specs modal doesn't close on Escape key press — only via its close (X) button. Consider adding Escape handler for a11y (minor)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "100%"},
+  "test_credentials": "Demo Admin via page.locator('button.justify-start').first (logs in as admin@davwo.com)",
+  "seed_data_creation": "None. Marketplace is 100% frontend mock (marketplaceMock.ts + localStorage). Enquiry submission stored to davwo_enquiries; saved products in davwo_saved_products.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Two elements share data-testid='pricing-card' and 'pricing-monthly' (one is an invisible docking placeholder for the sticky floating card). ALWAYS iterate locator and pick the first .is_visible() element. Similarly start-application-btn / contact-us-btn may resolve to 2 nodes (sticky duplicate on scroll) — iterate & pick visible. Modals do NOT respond to Escape; use the close button inside the modal (first <button> in the div.fixed.inset-0.z-50 container).",
+  "rca of the issue": "N/A — no bugs found."
+}

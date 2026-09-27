@@ -10,9 +10,10 @@ interface ProductCardProps {
   contractType: "personal" | "business";
   isSaved: boolean;
   onToggleSave: (e: React.MouseEvent, id: string) => void;
+  basePath?: string;
 }
 
-export function ProductCard({ product, contractType, isSaved, onToggleSave }: ProductCardProps) {
+export function ProductCard({ product, contractType, isSaved, onToggleSave, basePath = "/marketplace" }: ProductCardProps) {
   const vatMultiplier = contractType === "business" ? 1 / 1.2 : 1;
   const monthlyPrice = Math.round(product.baseMonthlyPrice * vatMultiplier);
   const initialPayment = Math.round(product.baseInitialPayment * vatMultiplier);
@@ -21,7 +22,7 @@ export function ProductCard({ product, contractType, isSaved, onToggleSave }: Pr
 
   return (
     <Link
-      href={`/marketplace/${product.id}`}
+      href={`${basePath}/${product.id}`}
       data-testid={`product-card-${product.id}`}
       className="group bg-white rounded-xl border border-slate-200/90 hover:border-emerald-300 shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer flex flex-col overflow-hidden text-left"
     >

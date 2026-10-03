@@ -55,6 +55,26 @@ User will add Supabase + real supplier auth/listings soon; keep in-memory mock f
   `/supplier/signup`. (Repo's AI-matcher / listing-detail / auth / supplier modals were NOT ported.)
 - Card copy is placeholder from the repo (user will refine later).
 
+## Energy Devices switcher + Solar/Battery/Fleet monitoring (2026-10-03)
+- Added a global **Energy Devices** switcher in the top bar next to the organisation switcher
+  (`components/layout/DeviceSwitcher.tsx`, context `lib/deviceType.tsx` mounted in `(app)/layout.tsx`,
+  selection persisted in localStorage per user). Options: EV Chargers, Solar, Batteries, Fleet Vehicles.
+- The **Monitoring** page (`(app)/monitoring/page.tsx`) switches on the selected device. EV Chargers view
+  is unchanged (kept as `EvMonitoring()`); Solar/Battery/Fleet are new dashboards styled to match it:
+  `components/monitoring/{SolarMonitoring,BatteryMonitoring,FleetMonitoring}.tsx`.
+  - Solar: current gen, energy today/month/lifetime, self-consumed vs exported, specific yield,
+    performance ratio, export earnings, CO₂ avoided, inverter status + fault codes, generation-vs-expected chart.
+  - Battery: avg SoC, charge/discharge power+flow, backup reserve, operating mode, grid status, usable/total
+    capacity, health, cycles, throughput, peak-shaving savings, 24h SoC/power chart, per-unit cards.
+  - Fleet: SoC, range, plugged/charging status, area-level location (privacy), last seen, odometer,
+    efficiency, cost/mile, battery health, ready-by-departure vs schedule, per-driver home-charging
+    reimbursement (addresses masked, drivers by ID).
+- Data: deterministic per-tenant mock in `lib/server/deviceMonitoring.ts` seeded from `currentSeed()`, with a
+  20s "live" jitter. API routes `app/api/monitoring/{solar,battery,fleet}/route.ts` (tenant-scoped).
+- Marketplace & Settings are shared/unchanged across device types.
+- Tested: frontend testing agent 100% pass (iteration_2.json). EV/Marketplace/Settings unaffected; selection
+  persists across reload.
+
 ## Backlog / Next
 - **P1 Landing copy** — user will specify final card/hero copy later.
 - **P1 Supplier portal** — supplier login to list products + monitor enquiries/analytics (user plans this).

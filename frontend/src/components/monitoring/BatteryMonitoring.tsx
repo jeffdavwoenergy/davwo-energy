@@ -55,7 +55,7 @@ export function BatteryMonitoring() {
           {!data ? (
             <Skeleton className="h-[260px]" />
           ) : (
-            <ResponsiveContainer width="100%" height={260}>
+            <ResponsiveContainer width="100%" height={260} minHeight={260}>
               <AreaChart data={data.curve} margin={{ left: -18, top: 8 }}>
                 <defs>
                   <linearGradient id="socFill" x1="0" y1="0" x2="0" y2="1">
@@ -65,7 +65,7 @@ export function BatteryMonitoring() {
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
                 <XAxis dataKey="t" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} interval={3} />
-                <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} width={36} domain={[0, 100]} unit="%" />
+                <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} width={42} domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} unit="%" />
                 <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid hsl(var(--border))", background: "hsl(var(--popover))", color: "hsl(var(--popover-foreground))", fontSize: 12 }} />
                 <ReferenceLine y={data.backupReservePct} stroke="hsl(var(--destructive))" strokeDasharray="4 4" />
                 <Area type="monotone" dataKey="soc" stroke="hsl(var(--chart-1))" fill="url(#socFill)" strokeWidth={2} name="SoC %" />

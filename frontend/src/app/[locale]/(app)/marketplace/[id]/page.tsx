@@ -2,13 +2,21 @@
 
 import { useParams } from "next/navigation";
 import { Link } from "@/i18n/navigation";
-import { ArrowLeft } from "lucide-react";
-import { getProduct } from "@/lib/marketplaceMock";
+import { ArrowLeft, Loader2 } from "lucide-react";
+import { useResolvedProduct } from "@/lib/supplierCatalog";
 import { ProductDetailView } from "@/components/marketplace/ProductDetailView";
 
 export default function MarketplaceProductPage() {
   const { id } = useParams<{ id: string }>();
-  const product = getProduct(id);
+  const { product, loading } = useResolvedProduct(id);
+
+  if (loading) {
+    return (
+      <div className="min-h-[50vh] flex items-center justify-center text-muted-foreground">
+        <Loader2 className="w-5 h-5 animate-spin" />
+      </div>
+    );
+  }
 
   if (!product) {
     return (
@@ -21,5 +29,5 @@ export default function MarketplaceProductPage() {
     );
   }
 
-  return <ProductDetailView product={product} />;
+  return <ProductDetailView product={product} basePath="/marketplace" />;
 }

@@ -24,8 +24,8 @@ export function PublicMarketplaceHeader() {
               <Link href="/dashboard">Go to dashboard</Link>
             </Button>
           ) : (
-            <Button asChild variant="ghost" className="text-slate-600 hover:text-slate-900" data-testid="public-mp-signin">
-              <Link href="/login">Sign in</Link>
+            <Button asChild variant="ghost" className="hidden sm:inline-flex text-slate-600 hover:text-slate-900" data-testid="public-mp-supplier">
+              <Link href="/supplier/login">List your products</Link>
             </Button>
           )}
           <Button asChild className="bg-emerald-600 hover:bg-emerald-700 text-white" data-testid="public-mp-pilot">

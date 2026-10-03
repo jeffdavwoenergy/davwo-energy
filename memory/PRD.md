@@ -75,6 +75,18 @@ User will add Supabase + real supplier auth/listings soon; keep in-memory mock f
 - Tested: frontend testing agent 100% pass (iteration_2.json). EV/Marketplace/Settings unaffected; selection
   persists across reload.
 
+## Supplier portal connected to the new marketplace (2026-10-03)
+- The separate supplier portal (`/supplier/signup|login|dashboard`, own token, independent of pilot accounts)
+  now feeds the AutoTrader-style marketplace. New `lib/supplierCatalog.ts` maps backend supplier products
+  (`/marketplace/products`) into `MpProduct` and merges them into `MarketplaceCatalogue` (public `/products`
+  + in-app `/marketplace`); detail pages resolve supplier listings via `useResolvedProduct` using the same
+  `ProductDetailView`. Category maps supplier→marketplace (battery→battery-solutions etc); pricing derived
+  from the supplier's price note (outright → monthly estimate).
+- Public products API now returns `vendorName` per product (used as the card brand).
+- Entry points added: "List your products" in the landing nav and the public marketplace header.
+- Products appear immediately (mock). Verified end-to-end: supplier signup → add product → shows in
+  marketplace card + detail.
+
 ## Backlog / Next
 - **P1 Landing copy** — user will specify final card/hero copy later.
 - **P1 Supplier portal** — supplier login to list products + monitor enquiries/analytics (user plans this).

@@ -7,6 +7,7 @@ import { ProductCard } from "@/components/marketplace/ProductCard";
 import { MarketplaceFilters, type MpFilterState } from "@/components/marketplace/MarketplaceFilters";
 import { useSavedProducts } from "@/lib/useSavedProducts";
 import { MP_PRODUCTS, CATEGORIES } from "@/lib/marketplaceMock";
+import { useSupplierCatalog } from "@/lib/supplierCatalog";
 
 const INITIAL: MpFilterState = {
   category: "all",
@@ -20,24 +21,26 @@ const INITIAL: MpFilterState = {
 export function MarketplaceCatalogue({ basePath = "/marketplace", heroDark = false }: { basePath?: string; heroDark?: boolean }) {
   const { isSaved, toggle } = useSavedProducts();
   const [filters, setFilters] = useState<MpFilterState>(INITIAL);
+  const supplierProducts = useSupplierCatalog();
+  const ALL = useMemo(() => [...supplierProducts, ...MP_PRODUCTS], [supplierProducts]);
 
   const onChange = <K extends keyof MpFilterState>(key: K, value: MpFilterState[K]) =>
     setFilters((prev) => ({ ...prev, [key]: value, ...(key === "category" ? { brand: "" } : {}) }));
 
   const categoryCounts = useMemo(() => {
-    const counts: Record<string, number> = { all: MP_PRODUCTS.length };
+    const counts: Record<string, number> = { all: ALL.length };
     for (const c of CATEGORIES) if (c.id !== "all") counts[c.id] = 0;
-    for (const p of MP_PRODUCTS) counts[p.category] = (counts[p.category] || 0) + 1;
+    for (const p of ALL) counts[p.category] = (counts[p.category] || 0) + 1;
     return counts;
-  }, []);
+  }, [ALL]);
 
   const availableBrands = useMemo(() => {
-    const pool = filters.category === "all" ? MP_PRODUCTS : MP_PRODUCTS.filter((p) => p.category === filters.category);
+    const pool = filters.category === "all" ? ALL : ALL.filter((p) => p.category === filters.category);
     return Array.from(new Set(pool.map((p) => p.brand))).sort();
-  }, [filters.category]);
+  }, [filters.category, ALL]);
 
   const results = useMemo(() => {
-    let list = [...MP_PRODUCTS];
+    let list = [...ALL];
     if (filters.category !== "all") list = list.filter((p) => p.category === filters.category);
     if (filters.searchQuery.trim()) {
       const q = filters.searchQuery.toLowerCase().trim();
@@ -56,7 +59,7 @@ export function MarketplaceCatalogue({ basePath = "/marketplace", heroDark = fal
     if (filters.sortBy === "price-asc") list.sort((a, b) => a.baseMonthlyPrice - b.baseMonthlyPrice);
     else if (filters.sortBy === "price-desc") list.sort((a, b) => b.baseMonthlyPrice - a.baseMonthlyPrice);
     return list;
-  }, [filters]);
+  }, [filters, ALL]);
 
   return (
     <div data-testid="marketplace-catalog">

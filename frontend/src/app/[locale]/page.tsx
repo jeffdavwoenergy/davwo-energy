@@ -31,6 +31,9 @@ export default function Landing() {
             <span className="font-display font-bold text-2xl tracking-tight text-neutral-900">DAVWO</span>
           </div>
           <div className="flex items-center gap-2">
+            <Button asChild variant="ghost" className="hidden sm:inline-flex text-neutral-700 hover:bg-neutral-100 hover:text-neutral-900">
+              <Link href="/supplier/login">List your products</Link>
+            </Button>
             <Button asChild variant="ghost" className="text-neutral-700 hover:bg-neutral-100 hover:text-neutral-900">
               <Link href="/products">Marketplace</Link>
             </Button>

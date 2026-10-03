@@ -14,7 +14,10 @@ export async function GET(req: Request) {
   const category = url.searchParams.get("category") || undefined;
   const q = url.searchParams.get("q")?.trim() || undefined;
   const products = await listProducts({ category, q });
-  return NextResponse.json({ products, categories: CATEGORIES });
+  const withVendor = await Promise.all(
+    products.map(async (p) => ({ ...p, vendorName: (await resolveVendor(p.vendorId))?.name })),
+  );
+  return NextResponse.json({ products: withVendor, categories: CATEGORIES });
 }
 
 /** Admin-only — for the platform team adding/curating a listing on a

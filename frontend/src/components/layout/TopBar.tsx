@@ -10,6 +10,7 @@ import { fetcher } from "@/lib/swr";
 import { useAuth } from "@/lib/auth";
 import Logo from "@/components/shared/Logo";
 import OrgSwitcher from "@/components/layout/OrgSwitcher";
+import DeviceSwitcher from "@/components/layout/DeviceSwitcher";
 import LanguageSwitcher from "@/components/layout/LanguageSwitcher";
 import {
   DropdownMenu,
@@ -76,6 +77,7 @@ export default function TopBar({ onOpenMobileNav }: { onOpenMobileNav?: () => vo
           <img src="/davwo-icon.png" alt="DAVWO" className="h-8 w-auto select-none" draggable={false} />
         </div>
         <OrgSwitcher />
+        <DeviceSwitcher />
       </div>
 
       <div className="flex items-center gap-1.5 sm:gap-3">

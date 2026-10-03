@@ -10,6 +10,10 @@ import PageHeader from "@/components/shared/PageHeader";
 import Panel, { Skeleton, ErrorBox } from "@/components/shared/Panel";
 import StatusPill from "@/components/shared/StatusPill";
 import KpiCard from "@/components/shared/KpiCard";
+import { useDeviceType } from "@/lib/deviceType";
+import { SolarMonitoring } from "@/components/monitoring/SolarMonitoring";
+import { BatteryMonitoring } from "@/components/monitoring/BatteryMonitoring";
+import { FleetMonitoring } from "@/components/monitoring/FleetMonitoring";
 
 interface StationStatus {
   stationId: string;
@@ -44,6 +48,14 @@ const FAULT_META: Record<FaultKind, { icon: LucideIcon; label: string; tone: "cr
 };
 
 export default function MonitoringPage() {
+  const { device } = useDeviceType();
+  if (device === "solar") return <SolarMonitoring />;
+  if (device === "battery") return <BatteryMonitoring />;
+  if (device === "fleet") return <FleetMonitoring />;
+  return <EvMonitoring />;
+}
+
+function EvMonitoring() {
   const { data, error } = useSWR<MonitorResult>("/monitoring", fetcher, { refreshInterval: 20000 });
   const { data: fs } = useSWR<FaultSummary>("/monitoring/faults", fetcher, { refreshInterval: 20000 });
 

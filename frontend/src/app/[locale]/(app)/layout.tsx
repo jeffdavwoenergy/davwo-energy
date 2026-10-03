@@ -7,6 +7,7 @@ import Sidebar, { SidebarContents } from "@/components/layout/Sidebar";
 import TopBar from "@/components/layout/TopBar";
 import FloatingAni from "@/components/ani/FloatingAni";
 import { useAuth } from "@/lib/auth";
+import { DeviceProvider } from "@/lib/deviceType";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import type { Role } from "@/lib/types";
 
@@ -65,20 +66,22 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </SheetContent>
       </Sheet>
 
-      <div className="flex-1 min-w-0 flex flex-col">
-        <TopBar onOpenMobileNav={() => setMobileNavOpen(true)} />
-        <main className="flex-1 px-4 sm:px-6 lg:px-8 py-4 sm:py-6 overflow-x-hidden">
-          {children}
-        </main>
-        <footer className="px-4 sm:px-6 lg:px-8 py-4 text-xs text-muted-foreground flex items-center justify-between flex-wrap gap-2">
-          <span>{t("copyright", { year: 2026 })}</span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-soft-pulse" />
-            <span className="hidden sm:inline">{t("dataRefreshes")}</span>
-            <span className="sm:hidden">{t("live")}</span>
-          </span>
-        </footer>
-      </div>
+      <DeviceProvider>
+        <div className="flex-1 min-w-0 flex flex-col">
+          <TopBar onOpenMobileNav={() => setMobileNavOpen(true)} />
+          <main className="flex-1 px-4 sm:px-6 lg:px-8 py-4 sm:py-6 overflow-x-hidden">
+            {children}
+          </main>
+          <footer className="px-4 sm:px-6 lg:px-8 py-4 text-xs text-muted-foreground flex items-center justify-between flex-wrap gap-2">
+            <span>{t("copyright", { year: 2026 })}</span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-soft-pulse" />
+              <span className="hidden sm:inline">{t("dataRefreshes")}</span>
+              <span className="sm:hidden">{t("live")}</span>
+            </span>
+          </footer>
+        </div>
+      </DeviceProvider>
 
       <FloatingAni />
     </div>

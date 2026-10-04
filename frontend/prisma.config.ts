@@ -1,5 +1,5 @@
 import { config as loadEnv } from "dotenv";
-import { defineConfig, env } from "prisma/config";
+import { defineConfig } from "prisma/config";
 
 // Next.js's own convention is .env.local for local secrets (see .env.example);
 // bare `dotenv/config` only auto-loads a file literally named `.env`, which
@@ -14,13 +14,15 @@ loadEnv({ path: ".env.local" });
  * pooled one. The app's actual runtime connection (pooled, port 6543) is
  * configured separately via the @prisma/adapter-pg driver adapter passed
  * to the PrismaClient constructor in src/lib/server/prisma.ts.
+ *
+ * DIRECT_URL is optional here: `prisma generate` (run by postinstall, e.g.
+ * during a Vercel build) never connects to the database, so it must not fail
+ * when the variable is absent. migrate/introspect still need it set.
  */
 export default defineConfig({
   schema: "prisma/schema.prisma",
   migrations: {
     path: "prisma/migrations",
   },
-  datasource: {
-    url: env("DIRECT_URL"),
-  },
+  ...(process.env.DIRECT_URL ? { datasource: { url: process.env.DIRECT_URL } } : {}),
 });

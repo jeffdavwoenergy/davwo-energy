@@ -9,7 +9,7 @@ import api from "@/lib/api";
 import { fetcher } from "@/lib/swr";
 import { useAuth } from "@/lib/auth";
 import Logo from "@/components/shared/Logo";
-import OrgSwitcher from "@/components/layout/OrgSwitcher";
+import PortalSwitcher from "@/components/layout/PortalSwitcher";
 import DeviceSwitcher from "@/components/layout/DeviceSwitcher";
 import LanguageSwitcher from "@/components/layout/LanguageSwitcher";
 import {
@@ -76,7 +76,7 @@ export default function TopBar({ onOpenMobileNav }: { onOpenMobileNav?: () => vo
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/davwo-icon.png" alt="DAVWO" className="h-8 w-auto select-none" draggable={false} />
         </div>
-        <OrgSwitcher />
+        <PortalSwitcher current="ani" />
         <DeviceSwitcher />
       </div>
 

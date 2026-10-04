@@ -5,39 +5,47 @@ import { useSearchParams } from "next/navigation";
 import { Link, useRouter } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import { motion } from "framer-motion";
-import { Mail, Lock, Eye, EyeOff, LogIn, UserCog, UserCheck, User, ArrowRight } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff, LogIn, UserCog, Building2, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
 import type { Role } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import AuthImagePanel from "@/components/shared/AuthImagePanel";
+import { linkSessionsIfSameEmail } from "@/lib/portalSwitch";
 
-const ROLE_META: { role: Role; icon: typeof UserCog; tone: string }[] = [
-  { role: "admin", icon: UserCog, tone: "bg-sky-100 text-sky-600 dark:bg-sky-500/15 dark:text-sky-300" },
-  { role: "operator", icon: UserCheck, tone: "bg-emerald-100 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300" },
-  { role: "pilot", icon: User, tone: "bg-purple-100 text-purple-600 dark:bg-purple-500/15 dark:text-purple-300" },
+/** Seeded demo accounts (users.ts DEMO_USERS) offered as one-click sign-ins —
+ * both admins, at different companies, each with Full membership. */
+const DEMO_ACCOUNTS: { account: string; role: Role; company: string; icon: typeof UserCog; tone: string }[] = [
+  { account: "u-admin", role: "admin", company: "Davwo Energy", icon: UserCog, tone: "bg-sky-100 text-sky-600 dark:bg-sky-500/15 dark:text-sky-300" },
+  { account: "u-acme-admin", role: "admin", company: "Acme Corp", icon: Building2, tone: "bg-emerald-100 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300" },
 ];
 
 function LoginInner() {
   const t = useTranslations("login");
-  const [email, setEmail] = useState("admin@davwo.com");
-  const [password, setPassword] = useState("Demo@123");
+  const sp = useSearchParams();
+  // ?switch=1 comes from the Supplier Portal's platform switcher: don't
+  // auto-redirect into whoever is already signed in to ANI™ here — the
+  // person switching may be a different account.
+  const switching = sp.get("switch") === "1";
+  const [email, setEmail] = useState(sp.get("email") || "admin@davwo.com");
+  const [password, setPassword] = useState(switching ? "" : "Demo@123");
   const [showPwd, setShowPwd] = useState(false);
   const [loading, setLoading] = useState(false);
   const { user, booting, login, demoLogin } = useAuth();
   const router = useRouter();
-  const sp = useSearchParams();
   const next = sp.get("from") || "/dashboard";
 
   useEffect(() => {
-    if (!booting && user) router.replace(next);
-  }, [booting, user, next, router]);
+    if (!booting && user && !switching) router.replace(next);
+  }, [booting, user, next, router, switching]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
       await login(email, password);
+      await linkSessionsIfSameEmail();
       toast.success(t("welcomeBack"));
       router.push(next);
     } catch (err: unknown) {
@@ -48,11 +56,12 @@ function LoginInner() {
     }
   };
 
-  const quickRole = async (role: Role) => {
+  const quickAccount = async ({ account, role, company }: (typeof DEMO_ACCOUNTS)[number]) => {
     setLoading(true);
     try {
-      await demoLogin(role);
-      toast.success(t("signedInAs", { role: t(`roles.${role}.label`) }));
+      await demoLogin(account);
+      await linkSessionsIfSameEmail();
+      toast.success(t("signedInAs", { role: `${t(`roles.${role}.label`)} · ${company}` }));
       router.push("/dashboard");
     } catch {
       toast.error(t("demoLoginFailed"));
@@ -64,24 +73,13 @@ function LoginInner() {
   return (
     <div className="min-h-screen grid lg:grid-cols-2">
       {/* Brand panel */}
-      <div className="hidden lg:flex relative bg-navy text-white overflow-hidden">
-        <div className="absolute inset-0 bg-map-dark opacity-90" />
-        <div className="absolute inset-0 bg-grain" />
-        <div className="relative z-10 flex flex-col justify-between p-12">
-          <div className="flex items-center gap-2">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/davwo-icon-white.png" alt="DAVWO" className="h-9 w-auto" />
-            <span className="font-display font-bold text-2xl">DAVWO</span>
-          </div>
-          <div>
-            <h2 className="text-4xl font-display font-bold leading-tight max-w-md">
-              {t.rich("brandHeadline", { highlight: (chunks) => <span className="text-emerald-400">{chunks}</span> })}
-            </h2>
-            <p className="mt-4 text-slate-300 max-w-md">{t("brandSubcopy")}</p>
-          </div>
-          <div className="text-xs text-muted-foreground">{t("copyright", { year: 2026 })}</div>
-        </div>
-      </div>
+      <AuthImagePanel
+        image="/landing/clean_energy_grid_hero_1790540262882.jpg"
+        alt="Clean energy grid"
+        headline={t.rich("brandHeadline", { highlight: (chunks) => <span className="text-emerald-400">{chunks}</span> })}
+        subcopy={t("brandSubcopy")}
+        footer={t("copyright", { year: 2026 })}
+      />
 
       {/* Form panel */}
       <div className="flex items-center justify-center p-6 sm:p-10 bg-background">
@@ -99,6 +97,11 @@ function LoginInner() {
 
           <h1 className="text-3xl font-display font-semibold text-foreground">{t("signIn")}</h1>
           <p className="text-muted-foreground mt-1 text-sm">{t("subtitle")}</p>
+          {switching && user && user.email !== email.toLowerCase().trim() && (
+            <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-800">
+              This browser is signed in to ANI™ as <strong>{user.email}</strong>. Sign in below to switch to your own account.
+            </div>
+          )}
 
           <form onSubmit={submit} className="mt-8 space-y-4">
             <div>
@@ -156,11 +159,13 @@ function LoginInner() {
               {t("orTryDemo")}
             </div>
             <div className="mt-3 space-y-2">
-              {ROLE_META.map(({ role, icon: Icon, tone }) => (
+              {DEMO_ACCOUNTS.map((demo) => {
+                const { account, role, company, icon: Icon, tone } = demo;
+                return (
                 <Button
-                  key={role}
+                  key={account}
                   variant="outline"
-                  onClick={() => quickRole(role)}
+                  onClick={() => quickAccount(demo)}
                   disabled={loading}
                   className="h-auto w-full justify-start gap-3 p-3 text-left font-normal hover:bg-emerald-50/40 dark:hover:bg-emerald-500/10 hover:border-emerald-300 dark:hover:border-emerald-500/40"
                 >
@@ -168,12 +173,13 @@ function LoginInner() {
                     <Icon size={18} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-semibold text-foreground">{t(`roles.${role}.label`)}</div>
+                    <div className="text-sm font-semibold text-foreground">{t(`roles.${role}.label`)} · {company}</div>
                     <div className="text-xs font-normal text-muted-foreground">{t(`roles.${role}.description`)}</div>
                   </div>
                   <ArrowRight size={16} className="text-muted-foreground shrink-0" />
                 </Button>
-              ))}
+                );
+              })}
             </div>
           </div>
 

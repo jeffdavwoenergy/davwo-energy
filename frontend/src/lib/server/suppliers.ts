@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { Prisma } from "@prisma/client";
 import { getPrisma, isDbConfigured } from "@/lib/server/prisma";
 import { hashPassword, verifyPassword } from "@/lib/server/password";
 
@@ -25,6 +26,70 @@ interface SupplierRecord extends Supplier {
 }
 
 const memorySuppliers = new Map<string, SupplierRecord>(); // key: id
+
+const DEMO_PASSWORD = process.env.DEMO_PASSWORD || "Demo@123";
+
+/** Built-in supplier accounts for the demo admins — same emails and demo
+ * password as their ANI™ accounts in users.ts (DEMO_USERS), so each has
+ * Full membership (both platforms) out of the box. */
+export const DEMO_SUPPLIERS = [
+  {
+    id: "s-davwo",
+    email: "admin@davwo.com",
+    companyName: "Davwo Energy Ltd",
+    category: "energy-services",
+    region: "United Kingdom",
+    website: "https://davwo.com",
+    verified: true,
+  },
+  {
+    id: "s-acme",
+    email: "admin@acmecorp.com",
+    companyName: "Acme Corp",
+    category: "ev-chargers",
+    region: "Birmingham",
+    website: "https://acmecorp.example",
+    verified: true,
+  },
+];
+/** The Davwo platform admin's supplier account. */
+export const DEMO_SUPPLIER = DEMO_SUPPLIERS[0];
+
+let seeding: Promise<void> | null = null;
+
+/** Lazy, idempotent seed of DEMO_SUPPLIERS (bcrypt-hashed on first use), into
+ * Postgres on a demo deployment or the in-memory map otherwise — same pattern as
+ * users.ts's ensureSeeded, but keyed on each email so they also land in a
+ * suppliers table that already has other rows. */
+function ensureSeeded(): Promise<void> {
+  seeding ??= (async () => {
+    // Known-password demo accounts only exist without a database (local/demo
+    // mode) or on a deployment flagged as a demo (ALLOW_DEMO_LOGIN) — never
+    // injected into a real suppliers table.
+    if (isDbConfigured() && (process.env.ALLOW_DEMO_LOGIN ?? "").trim().toLowerCase() !== "true") return;
+    const passwordHash = await hashPassword(DEMO_PASSWORD);
+    for (const demo of DEMO_SUPPLIERS) {
+      if (!isDbConfigured()) {
+        if (![...memorySuppliers.values()].some((s) => s.email === demo.email)) {
+          memorySuppliers.set(demo.id, { ...demo, passwordHash, createdAt: new Date().toISOString() });
+        }
+        continue;
+      }
+      const prisma = getPrisma()!;
+      if (await prisma.supplier.findUnique({ where: { email: demo.email } })) continue;
+      try {
+        await prisma.supplier.create({ data: { ...demo, passwordHash } });
+      } catch (err) {
+        // Another instance seeded it first — fine.
+        if (!(err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002")) throw err;
+      }
+    }
+  })().catch((err) => {
+    seeding = null;
+    throw err;
+  });
+  return seeding;
+}
 
 export class SupplierEmailInUseError extends Error {
   constructor() {
@@ -64,6 +129,7 @@ function publicSupplier(s: SupplierRecord): Supplier {
 }
 
 async function findRecordByEmail(email: string): Promise<SupplierRecord | undefined> {
+  await ensureSeeded();
   const normalized = email.toLowerCase().trim();
   if (!isDbConfigured()) return [...memorySuppliers.values()].find((s) => s.email === normalized);
   const prisma = getPrisma()!;
@@ -71,7 +137,15 @@ async function findRecordByEmail(email: string): Promise<SupplierRecord | undefi
   return doc ? fromRow(doc) : undefined;
 }
 
+/** Public supplier account for a login email, if one exists — used to work
+ * out whether an ANI™ user also has a supplier membership. */
+export async function findSupplierByEmail(email: string): Promise<Supplier | undefined> {
+  const record = await findRecordByEmail(email);
+  return record ? publicSupplier(record) : undefined;
+}
+
 export async function findSupplierById(id: string): Promise<Supplier | undefined> {
+  await ensureSeeded();
   if (!isDbConfigured()) {
     const found = memorySuppliers.get(id);
     return found ? publicSupplier(found) : undefined;
@@ -130,6 +204,7 @@ export async function authenticateSupplier(email: string, password: string): Pro
 /** Marketplace administration — the platform team's view of every registered
  * supplier, and the ability to verify one (or revoke that badge). */
 export async function listSuppliers(): Promise<Supplier[]> {
+  await ensureSeeded();
   if (!isDbConfigured()) {
     return [...memorySuppliers.values()].map(publicSupplier).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
@@ -139,6 +214,7 @@ export async function listSuppliers(): Promise<Supplier[]> {
 }
 
 export async function setSupplierVerified(id: string, verified: boolean): Promise<Supplier | undefined> {
+  await ensureSeeded();
   if (!isDbConfigured()) {
     const found = memorySuppliers.get(id);
     if (!found) return undefined;
@@ -150,4 +226,65 @@ export async function setSupplierVerified(id: string, verified: boolean): Promis
   if (!existing) return undefined;
   const doc = await prisma.supplier.update({ where: { id }, data: { verified } });
   return publicSupplier(fromRow(doc));
+}
+
+export interface SupplierProfileUpdate {
+  companyName?: string;
+  category?: string;
+  region?: string;
+  website?: string;
+}
+
+/** A supplier editing their own company profile from the portal's Settings
+ * page. Email and the verified badge are deliberately not editable here
+ * (identity and platform-granted trust respectively). Empty region/website
+ * clears them. */
+export async function updateSupplierProfile(id: string, patch: SupplierProfileUpdate): Promise<Supplier | undefined> {
+  await ensureSeeded();
+  const data = {
+    ...(patch.companyName !== undefined ? { companyName: patch.companyName } : {}),
+    ...(patch.category !== undefined ? { category: patch.category } : {}),
+    ...(patch.region !== undefined ? { region: patch.region || undefined } : {}),
+    ...(patch.website !== undefined ? { website: patch.website || undefined } : {}),
+  };
+  if (!isDbConfigured()) {
+    const found = memorySuppliers.get(id);
+    if (!found) return undefined;
+    Object.assign(found, data);
+    return publicSupplier(found);
+  }
+  const prisma = getPrisma()!;
+  if (!(await prisma.supplier.findUnique({ where: { id } }))) return undefined;
+  const doc = await prisma.supplier.update({
+    where: { id },
+    data: {
+      ...data,
+      ...(patch.region !== undefined ? { region: patch.region || null } : {}),
+      ...(patch.website !== undefined ? { website: patch.website || null } : {}),
+    },
+  });
+  return publicSupplier(fromRow(doc));
+}
+
+/** Changes a supplier's password after re-checking the current one. Throws
+ * WrongSupplierPasswordError if it doesn't match (or the account is gone). */
+export class DemoSupplierPasswordError extends Error {
+  constructor() {
+    super("Password changes aren't available on the shared demo account without a database — it would lock out every other visitor.");
+    this.name = "DemoSupplierPasswordError";
+  }
+}
+
+export async function changeSupplierPassword(id: string, currentPassword: string, newPassword: string): Promise<void> {
+  if (DEMO_SUPPLIERS.some((d) => d.id === id) && !isDbConfigured()) throw new DemoSupplierPasswordError();
+  const supplier = await findSupplierById(id);
+  const record = supplier ? await findRecordByEmail(supplier.email) : undefined;
+  if (!record || !(await verifyPassword(currentPassword, record.passwordHash))) throw new WrongSupplierPasswordError();
+  const passwordHash = await hashPassword(newPassword);
+  if (!isDbConfigured()) {
+    record.passwordHash = passwordHash;
+    return;
+  }
+  const prisma = getPrisma()!;
+  await prisma.supplier.update({ where: { id }, data: { passwordHash } });
 }

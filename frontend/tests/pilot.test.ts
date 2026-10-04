@@ -37,7 +37,8 @@ describe("pilot workspace generation", () => {
     expect(cats).toContain("ev-chargers"); // has chargers
     expect(cats).toContain("solar");        // has solar
     expect(cats).toContain("energy-services"); // cut-costs / reduce-carbon
-    ws.recommendedPartners.forEach((p) => expect(p.vendor).toBeTruthy());
+    // Each points at a real listing (the demo suppliers' catalogue) or a curated partner.
+    ws.recommendedPartners.forEach((p) => expect(p.productId ?? p.vendor).toBeTruthy());
   });
 
   it("never returns an empty workspace, even with no assets or objectives", async () => {
@@ -68,10 +69,11 @@ describe("pilot workspace generation", () => {
     expect(evPartner?.productName).toBe("Rapid 50 DC Charger");
     expect(evPartner?.vendor).toBeUndefined(); // real listing takes priority over the static fallback
 
-    // A category with no real listing still falls back to the curated vendor.
-    const solarPartner = ws.recommendedPartners.find((p) => p.category === "solar");
-    expect(solarPartner?.productId).toBeUndefined();
-    expect(solarPartner?.vendor).toBeTruthy();
+    // A category with no real listing (consulting) still falls back to the curated vendor.
+    const withConsulting = await buildWorkspace({ ...base, objectives: ["compliance"] });
+    const consultingPartner = withConsulting.recommendedPartners.find((p) => p.category === "consulting");
+    expect(consultingPartner?.productId).toBeUndefined();
+    expect(consultingPartner?.vendor).toBeTruthy();
   });
 });
 

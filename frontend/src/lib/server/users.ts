@@ -62,6 +62,17 @@ export const DEMO_USERS: DemoUser[] = [
     avatar_initials: "PN",
     password: DEMO_PASSWORD,
   },
+  {
+    id: "u-acme-admin",
+    email: "admin@acmecorp.com",
+    name: "Morgan Reid",
+    role: "admin",
+    orgId: "acme",
+    company: "Acme Corp",
+    job_title: "Operations Director",
+    avatar_initials: "MR",
+    password: DEMO_PASSWORD,
+  },
 ];
 
 /** Per-instance fallback for invited users when no DB is configured — same
@@ -112,7 +123,25 @@ async function ensureSeeded(): Promise<void> {
   if (seeded) return;
   const prisma = getPrisma()!;
   const count = await prisma.user.count();
-  if (count === 0) {
+  if (count > 0) {
+    // Already populated. On a demo deployment (ALLOW_DEMO_LOGIN), top up any
+    // demo accounts added since (e.g. the Acme Corp admin); anywhere else,
+    // never inject known-password accounts into a database with real users.
+    if ((process.env.ALLOW_DEMO_LOGIN ?? "").trim().toLowerCase() !== "true") {
+      seeded = true;
+      return;
+    }
+    for (const u of DEMO_USERS) {
+      if (await prisma.user.findUnique({ where: { email: u.email } })) continue;
+      await prisma.user.create({
+        data: {
+          id: u.id, email: u.email, name: u.name, role: u.role as UserRole, orgId: u.orgId,
+          passwordHash: await hashPassword(u.password), company: u.company ?? null,
+          jobTitle: u.job_title ?? null, avatarInitials: u.avatar_initials ?? null,
+        },
+      });
+    }
+  } else {
     const docs = await Promise.all(
       DEMO_USERS.map(async (u) => ({
         id: u.id,

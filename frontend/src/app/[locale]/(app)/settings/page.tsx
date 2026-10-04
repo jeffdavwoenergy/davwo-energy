@@ -9,6 +9,8 @@ import api from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import PageHeader from "@/components/shared/PageHeader";
 import Panel from "@/components/shared/Panel";
+import MembershipPanel from "@/components/shared/MembershipPanel";
+import { useLinkedAccounts, SupplierCompanyReadOnly } from "@/components/settings/LinkedSettings";
 import StatusPill from "@/components/shared/StatusPill";
 import type { Preferences, Role, User, Market } from "@/lib/types";
 import { MARKETS, MARKET_LABEL } from "@/lib/types";
@@ -20,8 +22,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 type Org = { id: string; name: string; slug: string; plan: string; region: string; market?: Market };
 
 const ROLES: Role[] = ["admin", "operator", "pilot"];
-const STATIC_TENANT_IDS = new Set(["davwo", "pilot-mcr", "growth-leeds"]);
-const DEMO_SEED_USER_IDS = new Set(["u-admin", "u-operator", "u-pilot"]);
+const STATIC_TENANT_IDS = new Set(["davwo", "pilot-mcr", "growth-leeds", "acme"]);
+const DEMO_SEED_USER_IDS = new Set(["u-admin", "u-operator", "u-pilot", "u-acme-admin"]);
 
 function TeamPanel({ selfId }: { selfId?: string }) {
   const { data: users, mutate } = useSWR<User[]>("/users", fetcher);
@@ -426,18 +428,30 @@ function ChangePasswordPanel() {
   );
 }
 
+/**
+ * Settings — the same sections in the same order as the Supplier Portal's
+ * Settings, so a Full member sees one combined page on either platform.
+ * ANI™ sections are editable here; the supplier Company profile is shown
+ * read-only with an "Edit in Supplier Portal" switch (and vice versa there).
+ */
 export default function SettingsPage() {
   const { user, refresh } = useAuth();
   const { data: orgs, mutate: mutateOrgs } = useSWR<Org[]>("/tenants", fetcher);
+  const { data: linked } = useLinkedAccounts("ani", api);
   const org = orgs?.find((o) => o.id === user?.orgId);
   const isStatic = user ? STATIC_TENANT_IDS.has(user.orgId) : false;
 
   return (
     <div>
-      <PageHeader title="Settings" subtitle="Your profile, organisation and platform preferences." />
+      <PageHeader title="Settings" subtitle="Your membership, profile, company and preferences — the same settings on ANI™ and the Supplier Portal." />
 
-      <div className="grid lg:grid-cols-2 gap-4">
+      <div className="grid lg:grid-cols-2 gap-4 items-start">
+        <div className="lg:col-span-2">
+          <MembershipPanel current="ani" client={api} />
+        </div>
+
         <ProfilePanel user={user ?? undefined} onUpdated={() => refresh()} />
+        <SupplierCompanyReadOnly data={linked} />
 
         <OrganisationPanel
           user={user ?? undefined}
@@ -446,21 +460,27 @@ export default function SettingsPage() {
           canEdit={user?.role === "admin"}
           onUpdated={() => mutateOrgs()}
         />
-
         <PreferencesPanel />
 
-        <Panel title="Security" right={<ShieldCheck size={18} className="text-muted-foreground" />}>
-          <div className="space-y-3 text-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Authentication</span>
-              <span className="font-medium text-foreground">JWT (HS256)</span>
+        <Panel title="Security" className="lg:col-span-2" right={<ShieldCheck size={18} className="text-muted-foreground" />}>
+          <div className="grid lg:grid-cols-2 gap-6">
+            <div className="space-y-3 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Signed in to ANI™ as</span>
+                <span className="font-medium text-foreground">{user?.email}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Authentication</span>
+                <span className="font-medium text-foreground">JWT (HS256)</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Multi-tenancy</span>
+                <StatusPill tone="success">Enabled</StatusPill>
+              </div>
+              <p className="text-xs text-muted-foreground pt-1">ANI™ and the Supplier Portal have separate passwords — this changes your ANI™ password.</p>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Multi-tenancy</span>
-              <StatusPill tone="success">Enabled</StatusPill>
-            </div>
+            <div className="[&>form]:mt-0 [&>form]:border-t-0 [&>form]:pt-0"><ChangePasswordPanel /></div>
           </div>
-          <ChangePasswordPanel />
         </Panel>
 
         {user?.role === "admin" && (

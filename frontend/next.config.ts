@@ -42,6 +42,15 @@ const nextConfig: NextConfig = {
     "api-rebuild-5.cluster-5.preview.emergentcf.cloud",
   ],
   turbopack: { root: __dirname },
+  // The public marketplace moved from /products to /marketplace — keep old links working.
+  async redirects() {
+    return [
+      { source: "/products", destination: "/marketplace", permanent: true },
+      { source: "/products/:id", destination: "/marketplace/:id", permanent: true },
+      { source: "/:locale(en|de|fr|es)/products", destination: "/:locale/marketplace", permanent: true },
+      { source: "/:locale(en|de|fr|es)/products/:id", destination: "/:locale/marketplace/:id", permanent: true },
+    ];
+  },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

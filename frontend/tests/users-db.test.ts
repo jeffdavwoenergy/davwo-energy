@@ -122,6 +122,18 @@ describe("users (Postgres-backed)", () => {
     expect(store).toHaveLength(1); // DEMO_USERS were NOT inserted on top
   });
 
+  it("tops up newly added demo accounts into a populated database only on a demo deployment", async () => {
+    store.push({ id: "u-admin", email: "admin@davwo.com", name: "Avery Stone", role: "admin", orgId: "davwo", passwordHash: "x" });
+    process.env.ALLOW_DEMO_LOGIN = "true";
+    try {
+      const { findByEmail } = await import("@/lib/server/users");
+      expect((await findByEmail("admin@acmecorp.com"))?.orgId).toBe("acme");
+      expect(store.filter((u) => u.email === "admin@davwo.com")).toHaveLength(1); // existing row untouched
+    } finally {
+      delete process.env.ALLOW_DEMO_LOGIN;
+    }
+  });
+
   it("does not re-seed once the collection is already populated", async () => {
     const { findByEmail } = await import("@/lib/server/users");
     await findByEmail("admin@davwo.com");

@@ -7,8 +7,9 @@
 import useSWR from "swr";
 import { fetcher } from "@/lib/swr";
 import { getProduct, MP_PRODUCTS, type MpProduct, type MpCategory } from "@/lib/marketplaceMock";
+import type { ProductListing } from "@/lib/server/products";
 
-interface SupplierProduct {
+export interface SupplierProduct {
   id: string;
   vendorId: string;
   vendorName?: string;
@@ -18,6 +19,8 @@ interface SupplierProduct {
   description: string;
   specs?: Record<string, string>;
   priceNote?: string;
+  listing?: ProductListing;
+  imageIds?: string[];
   createdAt: string;
 }
 
@@ -43,9 +46,10 @@ const MONTHLY_DEFAULT: Record<MpCategory, number> = {
   "ev-vehicles": 199,
 };
 
-function imagesFor(cat: MpCategory) {
-  const rep = MP_PRODUCTS.find((p) => p.category === cat) ?? MP_PRODUCTS[0];
-  return { images: rep.images, photosCount: rep.photosCount };
+/** Category stock photos — only used when a supplier hasn't uploaded their own. */
+export function stockImagesFor(category: string): string[] {
+  const cat = CAT_MAP[category] ?? "energy-services";
+  return (MP_PRODUCTS.find((p) => p.category === cat) ?? MP_PRODUCTS[0]).images;
 }
 function parsePrice(note?: string): number | undefined {
   if (!note) return undefined;
@@ -53,43 +57,60 @@ function parsePrice(note?: string): number | undefined {
   return m ? parseInt(m[0], 10) : undefined;
 }
 
-export function mapSupplierProduct(sp: SupplierProduct): MpProduct {
+/**
+ * Maps a supplier product to the marketplace shape. Every field the supplier
+ * filled in on the listing form is used as-is; the estimates below (price
+ * parsed from the free-text note, stock photos, generic spec tiles) only
+ * apply to listings saved before the structured form existed, or fields
+ * left blank. `imageUrls` overrides the gallery — the supplier portal's live
+ * preview passes not-yet-uploaded photos this way.
+ */
+export function mapSupplierProduct(sp: SupplierProduct, imageUrls?: string[]): MpProduct {
   const cat = CAT_MAP[sp.category] ?? "energy-services";
-  const { images, photosCount } = imagesFor(cat);
-  const outright = parsePrice(sp.priceNote);
-  const monthly = outright ? Math.max(9, Math.round((outright / 36) * 1.08)) : MONTHLY_DEFAULT[cat];
+  const l = sp.listing ?? {};
+  const uploaded = (sp.imageIds ?? []).map((imgId) => `/api/marketplace/products/${sp.id}/images/${imgId}`);
+  const images = imageUrls?.length ? imageUrls : uploaded.length ? uploaded : l.gallery?.length ? l.gallery : stockImagesFor(sp.category);
+  const outright = l.outrightPrice ?? parsePrice(sp.priceNote);
+  const contractMonths = l.contractMonths ?? 36;
+  const monthly = l.monthlyPrice ?? (outright ? Math.max(9, Math.round((outright / contractMonths) * 1.08)) : MONTHLY_DEFAULT[cat]);
   const vendorName = sp.vendorName || "Verified Davwo supplier";
+  const brand = l.brand || vendorName;
   const specEntries = sp.specs ? Object.entries(sp.specs).slice(0, 6) : [];
-  const specsGrid = specEntries.length
-    ? specEntries.map(([label, value]) => ({ label, value: String(value), icon: "check" }))
-    : [
-        { label: "Category", value: CAT_LABEL[cat], icon: "layers" },
-        { label: "Supplier", value: vendorName, icon: "shield" },
-        { label: "Availability", value: "On enquiry", icon: "check" },
-        { label: "Install", value: "Certified fit", icon: "home" },
-      ];
+  const specsGrid = l.keySpecs?.length
+    ? l.keySpecs
+    : specEntries.length
+      ? specEntries.map(([label, value]) => ({ label, value: String(value), icon: "check" }))
+      : [
+          { label: "Category", value: CAT_LABEL[cat], icon: "layers" },
+          { label: "Supplier", value: vendorName, icon: "shield" },
+          { label: "Availability", value: "On enquiry", icon: "check" },
+          { label: "Install", value: "Certified fit", icon: "home" },
+        ];
+  const features = l.features?.length
+    ? l.features
+    : sp.description ? sp.description.split(/(?<=[.!?])\s+/).map((s) => s.trim()).filter(Boolean).slice(0, 6) : [];
   return {
     id: sp.id,
     category: cat,
     categoryLabel: CAT_LABEL[cat],
-    brand: vendorName,
+    brand,
     model: sp.name,
-    version: sp.summary,
-    photosCount,
+    version: l.variant || sp.summary,
+    photosCount: images.length,
     images,
     baseMonthlyPrice: monthly,
-    baseInitialPayment: monthly * 3,
-    contractMonths: 36,
+    baseInitialPayment: l.upfrontPayment ?? monthly * 3,
+    contractMonths,
     outrightPrice: outright,
-    deliveryEstimate: sp.priceNote || "Pricing on enquiry",
-    deliveryStockNote: `Supplied & installed by ${vendorName}`,
+    deliveryEstimate: l.installEstimate || sp.priceNote || "Pricing on enquiry",
+    deliveryStockNote: l.stockNote || `Supplied & installed by ${vendorName}`,
     specsGrid,
-    features: sp.description ? sp.description.split(/(?<=[.!?])\s+/).map((s) => s.trim()).filter(Boolean).slice(0, 6) : [],
-    detailedSpecs: sp.specs,
-    maintenanceCost: 0,
-    maintenanceLabel: "maintenance plan",
+    features,
+    detailedSpecs: sp.specs && Object.keys(sp.specs).length ? sp.specs : undefined,
+    maintenanceCost: l.maintenanceMonthly ?? 0,
+    maintenanceLabel: l.maintenanceLabel || "maintenance plan",
     unitNoun: "units",
-    termType: "finance",
+    termType: l.termType ?? "finance",
   };
 }
 
@@ -98,15 +119,18 @@ export function useSupplierCatalog(): MpProduct[] {
   const { data } = useSWR<{ products: SupplierProduct[] }>("/marketplace/products", fetcher, {
     revalidateOnFocus: false,
   });
-  return (data?.products ?? []).map(mapSupplierProduct);
+  return (data?.products ?? []).map((p) => mapSupplierProduct(p));
 }
 
 /** Resolve a product by id — demo catalogue first, then a supplier listing. */
 export function useResolvedProduct(id: string): { product: MpProduct | null; loading: boolean } {
   const mock = getProduct(id);
-  const { data, isLoading, error } = useSWR<{ product: SupplierProduct }>(mock ? null : `/marketplace/products/${id}`, fetcher);
+  const { data, isLoading, error } = useSWR<{ product: SupplierProduct; vendor?: { name?: string } }>(
+    mock ? null : `/marketplace/products/${id}`,
+    fetcher,
+  );
   if (mock) return { product: mock, loading: false };
-  if (data?.product) return { product: mapSupplierProduct(data.product), loading: false };
+  if (data?.product) return { product: mapSupplierProduct({ ...data.product, vendorName: data.vendor?.name }), loading: false };
   if (error) return { product: null, loading: false };
   return { product: null, loading: isLoading };
 }

@@ -163,10 +163,14 @@ model Product {
   description String
   specs       Json?
   priceNote   String?
+  /// Structured marketplace-listing fields (brand, plan pricing, key specs,
+  /// features, install/stock notes) — see ProductListing in products.ts.
+  listing     Json?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   documents     ProductDocument[]
+  images        ProductImage[]
   knowledgeBase KnowledgeBaseEntry[]
 
   @@index([vendorId])
@@ -205,6 +209,22 @@ model ProductDocument {
 
   @@index([productId])
   @@map("product_documents")
+}
+
+/** A listing photo — stored as a DB blob, same no-object-storage rationale
+ * as ProductDocument. `position` orders the gallery (0 = card hero image). */
+model ProductImage {
+  id        String   @id @default(uuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  mimeType  String
+  sizeBytes Int
+  data      Bytes
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([productId])
+  @@map("product_images")
 }
 
 model PilotProfile {
@@ -261,4 +281,16 @@ model Supplier {
   updatedAt    DateTime @updatedAt
 
   @@map("suppliers")
+}
+
+/** An ANI™ user and a supplier account proven to belong to the same person
+ * (signed in to both in one browser) — lets them switch platforms without a
+ * second sign-in. Matching emails alone never link accounts: supplier
+ * sign-up doesn't verify email ownership. */
+model AccountLink {
+  userId     String   @id
+  supplierId String   @unique
+  createdAt  DateTime @default(now())
+
+  @@map("account_links")
 }

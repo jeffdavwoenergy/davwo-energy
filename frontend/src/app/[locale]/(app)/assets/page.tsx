@@ -303,7 +303,7 @@ function LinkedProduct({ productId }: { productId: string }) {
   const { data } = useSWR<{ product: { name: string }; vendor?: { name: string } }>(`/marketplace/products/${productId}`, fetcher);
   if (!data) return null;
   return (
-    <a href={`/products/${productId}`} target="_blank" rel="noopener noreferrer"
+    <a href={`/marketplace/${productId}`} target="_blank" rel="noopener noreferrer"
       className="text-xs text-emerald-600 hover:text-emerald-700 font-medium underline">
       {data.product.name}{data.vendor ? ` · ${data.vendor.name}` : ""}
     </a>

@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Phone, MessageSquare, Store } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import { Phone, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 import { ProductCard } from "@/components/marketplace/ProductCard";
+import { MarketplaceHero, MarketplaceSupplierCard, MarketplaceLogoCard } from "@/components/marketplace/MarketplaceHero";
 import { MarketplaceFilters, type MpFilterState } from "@/components/marketplace/MarketplaceFilters";
 import { useSavedProducts } from "@/lib/useSavedProducts";
 import { MP_PRODUCTS, CATEGORIES } from "@/lib/marketplaceMock";
@@ -18,8 +19,11 @@ const INITIAL: MpFilterState = {
   sortBy: "relevance",
 };
 
-export function MarketplaceCatalogue({ basePath = "/marketplace", heroDark = false }: { basePath?: string; heroDark?: boolean }) {
+/** showHero: the public marketplace opens with the hero + supplier/logo cards;
+ * signed-in ANI™ and Supplier Portal users go straight to the catalogue. */
+export function MarketplaceCatalogue({ basePath = "/marketplace", showHero = true }: { basePath?: string; showHero?: boolean }) {
   const { isSaved, toggle } = useSavedProducts();
+  const filtersRef = useRef<HTMLDivElement>(null);
   const [filters, setFilters] = useState<MpFilterState>(INITIAL);
   const supplierProducts = useSupplierCatalog();
   const ALL = useMemo(() => [...supplierProducts, ...MP_PRODUCTS], [supplierProducts]);
@@ -63,48 +67,26 @@ export function MarketplaceCatalogue({ basePath = "/marketplace", heroDark = fal
 
   return (
     <div data-testid="marketplace-catalog">
-      {/* Hero */}
-      <div
-        className={`rounded-2xl text-white p-6 sm:p-8 mb-6 relative overflow-hidden ${
-          heroDark ? "bg-navy" : "bg-gradient-to-br from-emerald-600 to-emerald-700"
-        }`}
-      >
-        {heroDark ? (
-          <>
-            <div className="absolute inset-0 bg-map-dark" />
-            <div className="absolute inset-0 bg-grain" />
-            <div className="absolute inset-0 rounded-2xl border border-white/10 pointer-events-none" />
-          </>
-        ) : (
-          <>
-            <div className="absolute -right-8 -top-8 w-40 h-40 rounded-full bg-white/10" />
-            <div className="absolute right-16 bottom-0 w-24 h-24 rounded-full bg-white/5" />
-          </>
-        )}
-        <div className="relative z-10">
-          <div
-            className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold mb-3 ${
-              heroDark ? "bg-emerald-500/15 border border-emerald-400/30 text-emerald-300" : "bg-white/15"
-            }`}
-          >
-            <Store size={14} /> Davwo Marketplace
+      {showHero && (
+        <>
+          <MarketplaceHero onBrowse={() => filtersRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })} />
+          <div className="grid grid-cols-[7fr_3fr] gap-3 sm:gap-4 mb-6">
+            <MarketplaceSupplierCard />
+            <MarketplaceLogoCard />
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Lease, finance or buy your energy hardware</h1>
-          <p className={`mt-2 text-sm sm:text-base max-w-2xl ${heroDark ? "text-slate-300" : "text-emerald-50"}`}>
-            EV chargers, home batteries, solar, energy services and electric vehicles — supplied, installed and monitored by Davwo.
-            Personalise your terms and see your monthly price instantly.
-          </p>
-        </div>
-      </div>
+        </>
+      )}
 
-      <MarketplaceFilters
-        filters={filters}
-        onChange={onChange}
-        onReset={() => setFilters(INITIAL)}
-        availableBrands={availableBrands}
-        totalResults={results.length}
-        categoryCounts={categoryCounts}
-      />
+      <div ref={filtersRef} className="scroll-mt-20">
+        <MarketplaceFilters
+          filters={filters}
+          onChange={onChange}
+          onReset={() => setFilters(INITIAL)}
+          availableBrands={availableBrands}
+          totalResults={results.length}
+          categoryCounts={categoryCounts}
+        />
+      </div>
 
       {/* Results header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-3 border-b border-slate-200 mb-6 text-xs sm:text-sm">

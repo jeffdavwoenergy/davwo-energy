@@ -9,12 +9,22 @@ import FloatingAni from "@/components/ani/FloatingAni";
 import { useAuth } from "@/lib/auth";
 import { DeviceProvider } from "@/lib/deviceType";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { PublicMarketplaceHeader } from "@/components/marketplace/PublicMarketplaceHeader";
 import type { Role } from "@/lib/types";
 
 const ROLE_RESTRICTIONS: Record<string, Role[]> = {
   "/settings": ["admin"],
   "/assets": ["admin", "operator"],
 };
+
+/** The marketplace catalogue and product pages are public — logged-out
+ * visitors get them in the standalone public shell instead of a login
+ * redirect. Enquiries and listing management stay sign-in only. */
+const PRIVATE_MARKETPLACE = ["/marketplace/enquiries", "/marketplace/manage"];
+function isPublicMarketplace(pathname: string): boolean {
+  const parts = pathname.split("/").filter(Boolean); // ["marketplace"] or ["marketplace", "<id>"]
+  return parts[0] === "marketplace" && parts.length <= 2 && !PRIVATE_MARKETPLACE.includes(pathname);
+}
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, booting } = useAuth();
@@ -39,6 +49,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (booting) return;
     if (!user) {
+      if (isPublicMarketplace(pathname)) return;
       router.replace(`/login?from=${encodeURIComponent(pathname)}`);
       return;
     }
@@ -49,6 +60,21 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       }
     }
   }, [booting, user, pathname, router]);
+
+  if (!booting && !user && isPublicMarketplace(pathname)) {
+    return (
+      <div className="min-h-screen bg-[#f8f9fa] text-slate-900">
+        <PublicMarketplaceHeader />
+        <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6">{children}</main>
+        <footer className="border-t border-slate-200 bg-white">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 text-xs text-slate-500 flex flex-wrap items-center justify-between gap-2">
+            <span>© 2026 Davwo Energy Ltd.</span>
+            <span>Supplied, installed &amp; monitored by Davwo</span>
+          </div>
+        </footer>
+      </div>
+    );
+  }
 
   if (booting || !user) {
     return (

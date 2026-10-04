@@ -27,7 +27,14 @@ import {
 } from "@/lib/marketplaceMock";
 import { useSavedProducts } from "@/lib/useSavedProducts";
 
-export function ProductDetailView({ product, basePath = "/marketplace" }: { product: MpProduct; basePath?: string }) {
+/**
+ * `preview`: the supplier portal's full-listing preview. Renders inside a
+ * dialog, so the pricing card stays in place (no floating/sticky window
+ * chrome), buyer actions are inert, and the sections that are the same on
+ * every listing (breadcrumbs, Davwo card, "How it works") are left out —
+ * only what the supplier's own listing data drives is shown.
+ */
+export function ProductDetailView({ product, basePath = "/marketplace", preview = false }: { product: MpProduct; basePath?: string; preview?: boolean }) {
   const { isSaved, toggle } = useSavedProducts();
   const colors = product.colors ?? [];
 
@@ -71,7 +78,8 @@ export function ProductDetailView({ product, basePath = "/marketplace" }: { prod
   // Floating pricing card dock behaviour
   const rightColumnRef = useRef<HTMLDivElement>(null);
   const cardSlotRef = useRef<HTMLDivElement>(null);
-  const [isDocked, setIsDocked] = useState(false);
+  const [isDockedRaw, setIsDocked] = useState(false);
+  const isDocked = preview || isDockedRaw;
   const [columnRect, setColumnRect] = useState<{ left: number; width: number } | null>(null);
 
   useEffect(() => {
@@ -161,7 +169,7 @@ export function ProductDetailView({ product, basePath = "/marketplace" }: { prod
         <button
           type="button"
           data-testid="start-application-btn"
-          onClick={() => setEnquiry({ open: true, mode: "application" })}
+          onClick={() => !preview && setEnquiry({ open: true, mode: "application" })}
           className="w-full bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white font-bold py-3 px-4 rounded-full text-[14px] transition-all text-center shadow-xs cursor-pointer truncate"
         >
           Start application
@@ -169,7 +177,7 @@ export function ProductDetailView({ product, basePath = "/marketplace" }: { prod
         <button
           type="button"
           data-testid="contact-us-btn"
-          onClick={() => setEnquiry({ open: true, mode: "contact" })}
+          onClick={() => !preview && setEnquiry({ open: true, mode: "contact" })}
           className="w-full bg-white hover:bg-emerald-50 active:scale-[0.99] border-2 border-emerald-600 text-emerald-700 font-bold py-3 px-4 rounded-full text-[14px] transition-all text-center cursor-pointer truncate"
         >
           Contact us
@@ -180,6 +188,8 @@ export function ProductDetailView({ product, basePath = "/marketplace" }: { prod
 
   return (
     <div className="w-full text-[#171c26] text-[14px]" data-testid="product-detail">
+      {!preview && (
+      <>
       {/* Breadcrumb + heart */}
       <div className="flex items-center justify-between py-1 mb-4 text-[13px] text-slate-700">
         <nav className="flex items-center gap-1.5 overflow-x-auto whitespace-nowrap scrollbar-none font-medium">
@@ -205,6 +215,8 @@ export function ProductDetailView({ product, basePath = "/marketplace" }: { prod
         </button>
       </div>
 
+      </>
+      )}
       <div className="grid grid-cols-1 sm:grid-cols-12 gap-5 md:gap-6 lg:gap-8 items-start">
         {/* LEFT */}
         <div className="sm:col-span-7 space-y-6">
@@ -247,10 +259,16 @@ export function ProductDetailView({ product, basePath = "/marketplace" }: { prod
             </div>
           </div>
 
+          {!preview && (
+          <>
           <p className="text-[13px] text-slate-500 leading-normal">
             Images are for illustration purposes only. Actual product finish and colours may vary slightly.
           </p>
 
+          </>
+          )}
+          {!preview && (
+          <>
           {/* Davwo brand card */}
           <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-sm">
             <div className="flex items-center gap-2 text-slate-900 font-bold text-[16px]">
@@ -260,6 +278,8 @@ export function ProductDetailView({ product, basePath = "/marketplace" }: { prod
             <div className="text-[13px] text-slate-600 font-medium mt-1">Certified supply, install &amp; monitoring included</div>
           </div>
 
+          </>
+          )}
           {/* Badges + title */}
           <div className="space-y-1.5 pt-0.5">
             <div className="flex items-center gap-2">
@@ -332,6 +352,8 @@ export function ProductDetailView({ product, basePath = "/marketplace" }: { prod
             )}
           </div>
 
+          {!preview && (
+          <>
           {/* How it works */}
           <div className="bg-white rounded-2xl border border-slate-200/90 p-6 shadow-sm">
             <h2 className="text-xl font-bold text-[#0c132b] mb-2">How it works</h2>
@@ -382,6 +404,8 @@ export function ProductDetailView({ product, basePath = "/marketplace" }: { prod
             </div>
           </div>
 
+          </>
+          )}
           {/* Expert review */}
           {product.rating && (
             <div className="bg-white rounded-2xl border border-slate-200/90 p-6 shadow-sm">
@@ -678,14 +702,14 @@ export function ProductDetailView({ product, basePath = "/marketplace" }: { prod
           <div className="grid grid-cols-2 gap-2.5">
             <button
               type="button"
-              onClick={() => setEnquiry({ open: true, mode: "application" })}
+              onClick={() => !preview && setEnquiry({ open: true, mode: "application" })}
               className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-full text-[13px] transition-all text-center shadow-xs cursor-pointer"
             >
               Start application
             </button>
             <button
               type="button"
-              onClick={() => setEnquiry({ open: true, mode: "contact" })}
+              onClick={() => !preview && setEnquiry({ open: true, mode: "contact" })}
               className="w-full bg-white border-2 border-emerald-600 text-emerald-700 font-bold py-2.5 px-4 rounded-full text-[13px] transition-all text-center cursor-pointer"
             >
               Contact us

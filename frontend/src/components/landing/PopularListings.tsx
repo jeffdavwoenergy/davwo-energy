@@ -36,7 +36,7 @@ export function PopularListings({ onSeeMore }: { onSeeMore: () => void }) {
             <ProductCard
               key={p.id}
               product={p}
-              basePath="/products"
+              basePath="/marketplace"
               contractType="personal"
               isSaved={isSaved(p.id)}
               onToggleSave={(e, id) => {
@@ -49,7 +49,7 @@ export function PopularListings({ onSeeMore }: { onSeeMore: () => void }) {
 
         <div className="mt-8 flex justify-center">
           <Link
-            href="/products"
+            href="/marketplace"
             data-testid="popular-browse-all"
             className="inline-flex items-center gap-1.5 rounded-full bg-[#125638] hover:bg-[#0c3e27] text-white font-semibold px-6 py-3 text-sm transition-colors"
           >

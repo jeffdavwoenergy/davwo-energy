@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupplierAuth } from "@/lib/server/auth";
-import { createProduct, listProducts } from "@/lib/server/products";
+import { createProduct, listProducts, parseListing } from "@/lib/server/products";
 import { CATEGORIES } from "@/lib/server/marketplace";
 import { rateLimit, clientKey } from "@/lib/server/rateLimit";
 
@@ -30,6 +30,7 @@ export async function POST(req: Request) {
   const description: string = (body?.description ?? "").toString().trim().slice(0, 4000);
   const priceNote: string = (body?.priceNote ?? "").toString().trim().slice(0, 120);
   const specs = body?.specs && typeof body.specs === "object" ? body.specs : undefined;
+  const listing = parseListing(body?.listing);
 
   if (!name || !summary || !description || !CATEGORIES.some((c) => c.id === category)) {
     return NextResponse.json({ detail: "name, a valid category, summary and description are required" }, { status: 400 });
@@ -37,7 +38,7 @@ export async function POST(req: Request) {
 
   const product = await createProduct({
     vendorId: claims.sub, name, category, summary, description,
-    specs, priceNote: priceNote || undefined,
+    specs, priceNote: priceNote || undefined, listing,
   });
   return NextResponse.json(product, { status: 201 });
 }

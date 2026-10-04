@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAuth, isPlatformAdmin } from "@/lib/server/auth";
-import { createProduct, listProducts } from "@/lib/server/products";
+import { createProduct, listProducts, parseListing } from "@/lib/server/products";
 import { CATEGORIES, resolveVendor } from "@/lib/server/marketplace";
 import { rateLimit, clientKey } from "@/lib/server/rateLimit";
 
@@ -40,6 +40,7 @@ export async function POST(req: Request) {
   const description: string = (body?.description ?? "").toString().trim().slice(0, 4000);
   const priceNote: string = (body?.priceNote ?? "").toString().trim().slice(0, 120);
   const specs = body?.specs && typeof body.specs === "object" ? body.specs : undefined;
+  const listing = parseListing(body?.listing);
 
   if (!(await resolveVendor(vendorId))) return NextResponse.json({ detail: "Unknown vendor" }, { status: 400 });
   if (!name || !summary || !description || !CATEGORIES.some((c) => c.id === category)) {
@@ -48,7 +49,7 @@ export async function POST(req: Request) {
 
   const product = await createProduct({
     vendorId, name, category, summary, description,
-    specs, priceNote: priceNote || undefined,
+    specs, priceNote: priceNote || undefined, listing,
   });
   return NextResponse.json(product, { status: 201 });
 }

@@ -38,11 +38,23 @@ describe("suppliers (Postgres-backed)", () => {
       email: "voltway@newco.example", password: "password123", companyName: "Voltway Networks",
       category: "ev-chargers", region: "Manchester, UK", website: "https://voltway.example",
     });
+    // No demo suppliers in a real database unless it's flagged as a demo deployment.
     expect(store).toHaveLength(1);
     expect((await findSupplierById(supplier.id))?.companyName).toBe("Voltway Networks");
 
     const authed = await authenticateSupplier("voltway@newco.example", "password123");
     expect(authed.id).toBe(supplier.id);
+  });
+
+  it("seeds the demo supplier accounts into the database only on a demo deployment", async () => {
+    process.env.ALLOW_DEMO_LOGIN = "true";
+    try {
+      const { findSupplierByEmail } = await import("@/lib/server/suppliers");
+      expect((await findSupplierByEmail("admin@acmecorp.com"))?.companyName).toBe("Acme Corp");
+      expect(store.map((s) => s.email).sort()).toEqual(["admin@acmecorp.com", "admin@davwo.com"]);
+    } finally {
+      delete process.env.ALLOW_DEMO_LOGIN;
+    }
   });
 
   it("rejects a duplicate email and a wrong password, via Prisma", async () => {

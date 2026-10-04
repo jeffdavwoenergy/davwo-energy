@@ -9,14 +9,15 @@ import {
   type ReactNode,
 } from "react";
 import api, { clearToken, getToken, setToken } from "@/lib/api";
-import type { Market, Role, User } from "@/lib/types";
+import type { Market, User } from "@/lib/types";
 
 interface AuthCtx {
   user: User | null;
   booting: boolean;
   login: (email: string, password: string) => Promise<User>;
   signup: (input: { orgName: string; region?: string; market?: Market; name: string; email: string; password: string }) => Promise<User>;
-  demoLogin: (role: Role) => Promise<User>;
+  /** One-click sign-in as a seeded demo account, by its user id (e.g. "u-admin"). */
+  demoLogin: (account: string) => Promise<User>;
   switchOrg: (orgId: string) => Promise<void>;
   logout: () => void;
   refresh: () => Promise<void>;
@@ -73,9 +74,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  const demoLogin = useCallback(async (role: Role) => {
+  const demoLogin = useCallback(async (account: string) => {
     const { data } = await api.post<{ token: string; user: User }>(
-      `/auth/demo-login?role=${role}`,
+      `/auth/demo-login?account=${encodeURIComponent(account)}`,
     );
     setToken(data.token);
     setUser(data.user);

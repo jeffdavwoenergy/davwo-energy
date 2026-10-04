@@ -191,7 +191,7 @@ export default function PilotOnboardingPage() {
                 {ws.recommendedPartners.map((p) => (
                   <Link
                     key={p.category}
-                    href={p.productId ? `/products/${p.productId}` : `/marketplace?category=${p.category}`}
+                    href={p.productId ? `/marketplace/${p.productId}` : `/marketplace?category=${p.category}`}
                     className="rounded-xl border border-border p-4 hover:border-emerald-300 dark:hover:border-emerald-500/40 hover:bg-emerald-50/40 dark:hover:bg-emerald-500/10 transition"
                   >
                     <div className="text-sm font-semibold text-foreground">{p.categoryLabel}</div>

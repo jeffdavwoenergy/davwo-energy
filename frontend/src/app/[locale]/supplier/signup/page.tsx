@@ -121,7 +121,7 @@ export default function SupplierSignupPage() {
           <Link href="/supplier/login" className="font-semibold text-foreground hover:underline">Sign in</Link>
         </div>
         <div className="mt-3 text-center text-xs text-muted-foreground">
-          <Link href="/products" className="hover:text-muted-foreground">← Back to product search</Link>
+          <Link href="/marketplace" className="hover:text-muted-foreground">← Back to marketplace</Link>
         </div>
       </div>
     </div>

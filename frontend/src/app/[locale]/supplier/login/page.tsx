@@ -58,8 +58,10 @@ function SupplierLoginInner() {
     try {
       const { data } = await supplierApi.post<SupplierAuthResponse>(`/supplier/auth/demo-login?account=${account}`);
       await signedIn(data);
-    } catch {
-      toast.error("Demo sign-in is unavailable right now. Please use your email and password.");
+    } catch (err: unknown) {
+      // Surface the server reason (e.g. "Demo login is disabled" when ALLOW_DEMO_LOGIN is off).
+      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      toast.error(detail ? `Demo sign-in failed: ${detail}` : "Demo sign-in is unavailable right now. Please use your email and password.");
     } finally {
       setLoading(false);
     }

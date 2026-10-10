@@ -63,8 +63,10 @@ function LoginInner() {
       await linkSessionsIfSameEmail();
       toast.success(t("signedInAs", { role: `${t(`roles.${role}.label`)} · ${company}` }));
       router.push("/dashboard");
-    } catch {
-      toast.error(t("demoLoginFailed"));
+    } catch (err: unknown) {
+      // Surface the server reason (e.g. "Demo login is disabled" when ALLOW_DEMO_LOGIN is off).
+      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      toast.error(detail ? `${t("demoLoginFailed")}: ${detail}` : t("demoLoginFailed"));
     } finally {
       setLoading(false);
     }

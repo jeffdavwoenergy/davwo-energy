@@ -1,11 +1,13 @@
 import PDFDocument from "pdfkit";
 import { metrics, energySeries, assets, insights } from "@/lib/server/providers";
+import { deviceMonitors } from "@/lib/server/deviceInsights";
+import { fleetAnalytics, solarAnalytics, batteryAnalytics, type AnalyticsPeriod } from "@/lib/server/deviceAnalytics";
 
 export type ReportPeriod = "daily" | "weekly" | "monthly";
-export type ReportCategory = "energy" | "asset" | "carbon" | "ani";
+export type ReportCategory = "energy" | "asset" | "carbon" | "ani" | "fleet" | "drivers" | "solar" | "battery";
 
 export const REPORT_PERIODS: ReportPeriod[] = ["daily", "weekly", "monthly"];
-export const REPORT_CATEGORIES: ReportCategory[] = ["energy", "asset", "carbon", "ani"];
+export const REPORT_CATEGORIES: ReportCategory[] = ["energy", "asset", "carbon", "ani", "fleet", "drivers", "solar", "battery"];
 
 const PERIOD_LABEL: Record<ReportPeriod, string> = {
   daily: "Last 24 hours",
@@ -22,7 +24,104 @@ const CATEGORY_LABEL: Record<ReportCategory, string> = {
   asset: "Asset Report",
   carbon: "Carbon Report",
   ani: "ANI Report",
+  fleet: "Fleet Report",
+  drivers: "Home-Charging Repayment Statement",
+  solar: "Solar Generation Report",
+  battery: "Battery Savings Report",
 };
+const PERIOD_TO_ANALYTICS: Record<ReportPeriod, AnalyticsPeriod> = { daily: "day", weekly: "week", monthly: "month" };
+const DAYS: Record<ReportPeriod, number> = { daily: 1, weekly: 7, monthly: 28 };
+/** Home charging is repaid at this rate per kWh (matches the fleet dashboard). */
+export const HOME_CHARGE_PENCE = 29;
+const gbp = (n: number) => `£${n.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const num = (n: number) => n.toLocaleString("en-GB");
+
+/** Fleet, driver repayment, solar and battery reports — built from the same
+ * simulations and analytics as their pages, so the numbers agree. */
+async function buildDeviceReport(
+  period: ReportPeriod, category: "fleet" | "drivers" | "solar" | "battery", orgId: string, base: { title: string; subtitle: string; generatedAt: string },
+): Promise<ReportData> {
+  const m = await deviceMonitors(orgId);
+  const ap = PERIOD_TO_ANALYTICS[period];
+
+  if (category === "fleet") {
+    const a = fleetAnalytics(m.fleet, ap);
+    const faults = new Map(m.fleet.vehicles.map((v) => [v.id, v.faults.length]));
+    return {
+      ...base,
+      kpis: [
+        { label: "Miles Driven", value: `${num(a.totals.miles)} mi` },
+        { label: "Energy Used", value: `${num(a.totals.kwh)} kWh` },
+        { label: "Energy Cost", value: gbp(a.totals.costGbp) },
+        { label: "Cost per Mile", value: `£${a.totals.costPerMileGbp.toFixed(3)}` },
+        { label: "CO₂ Saved vs Diesel", value: `${num(a.totals.co2SavedKg)} kg` },
+        { label: "Open Faults", value: String(m.fleet.faultCounts.critical + m.fleet.faultCounts.warning + m.fleet.faultCounts.info) },
+        { label: "Vehicles Off the Road", value: String(m.fleet.vehicles.filter((v) => v.status === "fault").length) },
+      ],
+      tableTitle: "Vehicles",
+      tableColumns: ["Vehicle", "Registration", "Miles", "kWh", "mi/kWh", "£/mile", "Days in use %", "CO₂ saved kg", "Open faults"],
+      tableRows: a.vehicles.map((v) => [v.name, v.reg, v.miles, v.kwh, v.miPerKwh, v.costPerMileGbp, v.utilisationPct, v.co2SavedKg, faults.get(v.id) ?? 0]),
+      dataMode: "synthetic",
+    };
+  }
+
+  if (category === "drivers") {
+    // The dashboard's per-driver figures are a typical working day; scale to the period.
+    const factor = (DAYS[period] * 5) / 7;
+    const rows = m.fleet.reimbursements.map((d) => {
+      const kwh = Math.round(d.homeEnergyKwh * factor * 10) / 10;
+      return { driver: d.driverId, sessions: Math.max(1, Math.round(d.sessions * factor)), kwh, amount: Math.round(kwh * HOME_CHARGE_PENCE) / 100 };
+    });
+    return {
+      ...base,
+      kpis: [
+        { label: "Drivers", value: String(rows.length) },
+        { label: "Home Energy", value: `${num(Math.round(rows.reduce((s, r) => s + r.kwh, 0)))} kWh` },
+        { label: "Total to Repay", value: gbp(rows.reduce((s, r) => s + r.amount, 0)) },
+        { label: "Rate", value: `${HOME_CHARGE_PENCE}p per kWh` },
+      ],
+      tableTitle: "Repayment per Driver (home addresses are not included)",
+      tableColumns: ["Driver", "Sessions", "Home energy kWh", "Rate p/kWh", "Amount £"],
+      tableRows: rows.map((r) => [r.driver, r.sessions, r.kwh, HOME_CHARGE_PENCE, r.amount]),
+      dataMode: "synthetic",
+    };
+  }
+
+  if (category === "solar") {
+    const a = solarAnalytics(m.solar, ap);
+    return {
+      ...base,
+      kpis: [
+        { label: "Generated", value: `${num(a.totals.kwh)} kWh` },
+        { label: "Exported", value: `${num(a.days.reduce((s, d) => s + d.exportKwh, 0))} kWh` },
+        { label: "Export Earnings", value: gbp(a.totals.exportEarningsGbp) },
+        { label: "Used On Site", value: `${a.totals.selfUsePct}%` },
+        { label: "Performance", value: `${a.totals.avgPerformancePct}%` },
+        { label: "CO₂ Avoided", value: `${num(a.totals.co2AvoidedKg)} kg` },
+      ],
+      tableTitle: "Daily Generation & Export (for Smart Export Guarantee records)",
+      tableColumns: ["Date", "Generated kWh", "Expected kWh", "Used on site kWh", "Exported kWh", "Performance %"],
+      tableRows: a.days.map((d) => [d.date, d.kwh, d.expectedKwh, d.selfUseKwh, d.exportKwh, d.performancePct]),
+      dataMode: "synthetic",
+    };
+  }
+
+  const a = batteryAnalytics(m.battery, ap);
+  return {
+    ...base,
+    kpis: [
+      { label: "Savings", value: gbp(a.totals.savingsGbp) },
+      { label: "Cycles", value: String(a.totals.cycles) },
+      { label: "Energy Delivered", value: `${num(a.totals.dischargedKwh)} kWh` },
+      { label: "Round-trip Efficiency", value: `${a.totals.roundTripPct}%` },
+      { label: "Battery Health", value: `${m.battery.healthPct}%` },
+    ],
+    tableTitle: "Daily Battery Activity",
+    tableColumns: ["Date", "Cycles", "Charged kWh", "Delivered kWh", "Saved £"],
+    tableRows: a.days.map((d) => [d.date, d.cycles, d.chargedKwh, d.dischargedKwh, d.savingsGbp]),
+    dataMode: "synthetic",
+  };
+}
 
 export interface ReportData {
   title: string;
@@ -38,6 +137,10 @@ export interface ReportData {
 export async function buildReport(period: ReportPeriod, category: ReportCategory, orgId: string): Promise<ReportData> {
   const generatedAt = new Date().toISOString();
   const subtitle = `${PERIOD_LABEL[period]} · Generated ${new Date(generatedAt).toLocaleString("en-GB")}`;
+
+  if (category === "fleet" || category === "drivers" || category === "solar" || category === "battery") {
+    return buildDeviceReport(period, category, orgId, { title: CATEGORY_LABEL[category], subtitle, generatedAt });
+  }
 
   if (category === "asset") {
     const list = await assets(orgId);

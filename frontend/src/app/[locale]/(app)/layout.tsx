@@ -107,9 +107,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </span>
           </footer>
         </div>
+        {/* Inside the provider so ANI knows which device type is selected. */}
+        <FloatingAni />
       </DeviceProvider>
-
-      <FloatingAni />
     </div>
   );
 }

@@ -18,6 +18,7 @@ import {
 import { fetchCarbonIntensity, fetchOctopusAgile } from "@/lib/data/regions/uk";
 import { currentOrg } from "@/lib/server/context";
 import { isLLMConfigured, callLLM, callLLMStream } from "@/lib/server/llm";
+import { DEVICE_CAPABILITIES, DEVICE_DEFAULT, DEVICE_CONTEXT, type DeviceId } from "./deviceCapabilities";
 
 const FUEL_COLORS: Record<string, string> = {
   gas: "#f59e0b", coal: "#475569", nuclear: "#8b5cf6", wind: "#22c55e", solar: "#facc15",
@@ -31,7 +32,13 @@ interface Capability {
   label: string;
   keywords: string[];
   build: () => Promise<Block[]>;
+  /** Solar/Battery/Fleet capabilities — only in play when that device is selected. */
+  device?: DeviceId;
 }
+
+/** The Energy Devices switcher's selection, as sent by the chat UIs. */
+export type ChatDevice = "ev" | DeviceId;
+const isDeviceId = (d?: string): d is DeviceId => d === "solar" || d === "battery" || d === "fleet";
 
 const CAPABILITIES: Capability[] = [
   {
@@ -252,9 +259,16 @@ export function contextCapabilityId(context?: string): string | undefined {
   return hit ? CONTEXT_CAPABILITY[hit] : undefined;
 }
 
-function selectCapabilities(question: string, context?: string): Capability[] {
+function selectCapabilities(question: string, context?: string, device?: string): Capability[] {
   const q = question.toLowerCase();
-  const scored = CAPABILITIES.map((c) => ({ c, score: c.keywords.filter((k) => q.includes(k)).length }))
+  // With Solar/Battery/Fleet selected, its capabilities join the pool and win
+  // ties against the generic EV/grid ones (half a keyword's worth of bias).
+  const pool: Capability[] = isDeviceId(device) ? [...CAPABILITIES, ...DEVICE_CAPABILITIES] : CAPABILITIES;
+  const scored = pool
+    .map((c) => {
+      const hits = c.keywords.filter((k) => q.includes(k)).length;
+      return { c, score: hits ? hits + (c.device && c.device === device ? 0.5 : 0) : 0 };
+    })
     .filter((x) => x.score > 0)
     .sort((a, b) => b.score - a.score);
   if (scored.length) {
@@ -266,6 +280,12 @@ function selectCapabilities(question: string, context?: string): Capability[] {
     const top = scored[0].score;
     return scored.filter((x) => x.score === top).slice(0, 2).map((x) => x.c);
   }
+  if (isDeviceId(device)) {
+    const ctx = DEVICE_CONTEXT[device] ?? {};
+    const hit = context ? Object.keys(ctx).find((p) => context.startsWith(p)) : undefined;
+    const id = hit ? ctx[hit] : DEVICE_DEFAULT[device];
+    return [DEVICE_CAPABILITIES.find((c) => c.id === id)!];
+  }
   const ctxId = contextCapabilityId(context);
   const ctxCap = ctxId ? CAPABILITIES.find((c) => c.id === ctxId) : undefined;
   return [ctxCap ?? CAPABILITIES.find((c) => c.id === "summary")!];
@@ -274,7 +294,7 @@ function selectCapabilities(question: string, context?: string): Capability[] {
 function templateIntro(caps: Capability[]): string {
   const labels = caps.map((c) => c.label);
   const list = labels.length > 1 ? labels.slice(0, -1).join(", ") + " and " + labels[labels.length - 1] : labels[0];
-  return `Here's the ${list}, from live data:`;
+  return caps.some((c) => c.device) ? `Here's the ${list}:` : `Here's the ${list}, from live data:`;
 }
 
 const NARRATE_SYSTEM_PROMPT =
@@ -286,8 +306,8 @@ const NARRATE_SYSTEM_PROMPT =
 const narratePrompt = (question: string, labels: string[]) =>
   `User asked: "${question}". The dashboard is showing: ${labels.join(", ")}. Write the lead-in.`;
 
-export async function answer(question: string, context?: string): Promise<AssistantAnswer> {
-  const caps = selectCapabilities(question, context);
+export async function answer(question: string, context?: string, device?: ChatDevice): Promise<AssistantAnswer> {
+  const caps = selectCapabilities(question, context, device);
   const built = await Promise.all(caps.map((c) => c.build()));
   const blocks = built.flat();
 
@@ -307,8 +327,10 @@ export async function answer(question: string, context?: string): Promise<Assist
  * no OPENAI_API_KEY is set) — blocks themselves are structured data
  * computed synchronously, not naturally streamable, so they're returned
  * whole in the final AssistantAnswer once narration finishes. */
-export async function streamAnswer(question: string, context: string | undefined, onDelta: (chunk: string) => void): Promise<AssistantAnswer> {
-  const caps = selectCapabilities(question, context);
+export async function streamAnswer(
+  question: string, context: string | undefined, onDelta: (chunk: string) => void, device?: ChatDevice,
+): Promise<AssistantAnswer> {
+  const caps = selectCapabilities(question, context, device);
   const built = await Promise.all(caps.map((c) => c.build()));
   const blocks = built.flat();
 

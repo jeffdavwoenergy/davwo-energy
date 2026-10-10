@@ -17,6 +17,9 @@ export function useSavedProducts() {
   const [saved, setSaved] = useState<string[]>([]);
 
   useEffect(() => {
+    // localStorage is browser-only, so it's read after mount (the server
+    // render starts empty), same pattern as the app's auth refresh.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSaved(read());
     const onStorage = (e: StorageEvent) => {
       if (e.key === KEY) setSaved(read());

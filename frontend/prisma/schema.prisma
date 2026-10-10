@@ -57,6 +57,7 @@ enum AssetType {
   EV_CHARGER @map("EV Charger")
   BATTERY    @map("Battery")
   SOLAR      @map("Solar")
+  VEHICLE    @map("Vehicle")
 }
 
 enum AssetStatus {
@@ -82,6 +83,9 @@ model UserAsset {
   serialNumber    String?
   installedAt     DateTime?
   productId       String?
+  /** Type-specific fields (vehicle reg/battery size, solar panel count, …),
+   * validated by src/lib/assetSpecs.ts. */
+  specs           Json?
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
 

@@ -9,10 +9,11 @@ import { fetcher } from "@/lib/swr";
 import api from "@/lib/api";
 import { formatGBP, formatNumber } from "@/lib/format";
 import PageHeader from "@/components/shared/PageHeader";
-import Panel, { Skeleton } from "@/components/shared/Panel";
+import Panel, { Skeleton, ErrorBox } from "@/components/shared/Panel";
 import DataSourceBadge from "@/components/shared/DataSourceBadge";
 import type { Preferences, ReportSchedule } from "@/lib/types";
 import { Button } from "@/components/ui/button";
+import { useDeviceType, DEVICES, type DeviceType } from "@/lib/deviceType";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -29,15 +30,85 @@ interface Metrics {
 type Series = { points: { time: string; value: number }[] };
 type Insight = { severity: string; asset: string; recommendation: string; why: string };
 
-type ReportCategory = "energy" | "asset" | "carbon" | "ani";
+type ReportCategory = "energy" | "asset" | "carbon" | "ani" | "fleet" | "drivers" | "solar" | "battery";
 type ReportPeriod = "daily" | "weekly" | "monthly";
 
-const CATEGORIES: { value: ReportCategory; label: string }[] = [
-  { value: "energy", label: "Energy" },
-  { value: "asset", label: "Asset" },
-  { value: "carbon", label: "Carbon" },
-  { value: "ani", label: "ANI" },
+/** Which Energy Devices type each report belongs to ("all" = every device). */
+const CATEGORIES: { value: ReportCategory; label: string; device: DeviceType | "all" }[] = [
+  { value: "energy", label: "Energy", device: "ev" },
+  { value: "carbon", label: "Carbon", device: "ev" },
+  { value: "ani", label: "ANI", device: "ev" },
+  { value: "fleet", label: "Fleet", device: "fleet" },
+  { value: "drivers", label: "Driver home-charging repayments", device: "fleet" },
+  { value: "solar", label: "Solar generation & export", device: "solar" },
+  { value: "battery", label: "Battery savings", device: "battery" },
+  { value: "asset", label: "Asset register", device: "all" },
 ];
+const DEFAULT_CATEGORY: Record<DeviceType, ReportCategory> = { ev: "energy", fleet: "fleet", solar: "solar", battery: "battery" };
+
+interface ReportData {
+  title: string;
+  subtitle: string;
+  kpis: { label: string; value: string }[];
+  tableTitle: string;
+  tableColumns: string[];
+  tableRows: (string | number)[][];
+}
+
+/** On-page preview of exactly what the PDF/CSV export contains. */
+function ReportPreview({ category, period }: { category: ReportCategory; period: ReportPeriod }) {
+  const { data, error } = useSWR<ReportData>(`/reports/preview?category=${category}&period=${period}`, fetcher);
+  return (
+    <Panel className="mt-4">
+      <div className="flex items-center gap-3 border-b border-border pb-4">
+        <div className="w-11 h-11 rounded-xl bg-emerald-50 dark:bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 flex items-center justify-center">
+          <FileText size={20} />
+        </div>
+        <div>
+          <div className="font-display font-semibold text-lg text-foreground">{data?.title ?? "Report preview"}</div>
+          <div className="text-xs text-muted-foreground">{data?.subtitle ?? "Loading…"}</div>
+        </div>
+      </div>
+      {error ? (
+        <div className="mt-4"><ErrorBox message="Could not build this report." /></div>
+      ) : !data ? (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-5">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-20" />)}</div>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-5">
+            {data.kpis.map((k) => (
+              <div key={k.label} className="rounded-xl border border-border p-4">
+                <div className="text-[11px] uppercase tracking-wider text-muted-foreground">{k.label}</div>
+                <div className="text-xl font-semibold text-foreground mt-1 font-display">{k.value}</div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-5 text-sm font-semibold text-foreground">{data.tableTitle}</div>
+          <div className="mt-2 overflow-x-auto max-h-[420px] overflow-y-auto sidebar-scroll">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 bg-card">
+                <tr className="text-left text-[11px] uppercase tracking-wider text-muted-foreground border-b border-border">
+                  {data.tableColumns.map((c, i) => <th key={c} className={`py-2 pr-3 font-medium ${i > 0 ? "text-right" : ""}`}>{c}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {data.tableRows.map((row, ri) => (
+                  <tr key={ri} className="border-b border-border/60 last:border-0">
+                    {row.map((cell, ci) => (
+                      <td key={ci} className={`py-2 pr-3 ${ci > 0 ? "text-right text-foreground/80" : "font-medium text-foreground"}`}>
+                        {typeof cell === "number" ? cell.toLocaleString("en-GB") : cell}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+    </Panel>
+  );
+}
 const PERIODS: { value: ReportPeriod; label: string }[] = [
   { value: "daily", label: "Daily" },
   { value: "weekly", label: "Weekly" },
@@ -123,13 +194,18 @@ function ScheduledReportPanel() {
 }
 
 export default function ReportsPage() {
+  const { device } = useDeviceType();
   const metrics = useSWR<Metrics>("/dashboard/metrics", fetcher);
   const week = useSWR<Series>("/dashboard/energy-series?period=week", fetcher);
   const insights = useSWR<Insight[]>("/ani/insights", fetcher);
   const m = metrics.data;
 
-  const [category, setCategory] = useState<ReportCategory>("energy");
-  const [period, setPeriod] = useState<ReportPeriod>("daily");
+  // Each device remembers its own pick; it starts on that device's main report.
+  const [picked, setPicked] = useState<Partial<Record<DeviceType, ReportCategory>>>({});
+  const category = picked[device] ?? DEFAULT_CATEGORY[device];
+  const setCategory = (c: ReportCategory) => setPicked((p) => ({ ...p, [device]: c }));
+  const deviceCategories = CATEGORIES.filter((c) => c.device === device || c.device === "all");
+  const [period, setPeriod] = useState<ReportPeriod>(device === "ev" ? "daily" : "weekly");
   const [downloading, setDownloading] = useState<"csv" | "pdf" | null>(null);
 
   const download = async (format: "csv" | "pdf") => {
@@ -173,8 +249,10 @@ export default function ReportsPage() {
     <div>
       <PageHeader
         title="Reports"
-        subtitle="Executive summary of network performance, cost and carbon."
-        right={m && <DataSourceBadge mode={m.data_mode} sources={m.data_sources} />}
+        subtitle={device === "ev"
+          ? "Executive summary of network performance, cost and carbon."
+          : `Reports for your ${DEVICES.find((d) => d.id === device)!.label.toLowerCase()} — preview below, export as PDF or CSV.`}
+        right={device === "ev" && m ? <DataSourceBadge mode={m.data_mode} sources={m.data_sources} /> : undefined}
       />
 
       <Panel title="Generate Report" subtitle="Choose a category and period, then export">
@@ -184,7 +262,7 @@ export default function ReportsPage() {
             <Select value={category} onValueChange={(v) => setCategory(v as ReportCategory)}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                {CATEGORIES.map((c) => (
+                {deviceCategories.map((c) => (
                   <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
                 ))}
               </SelectContent>
@@ -212,6 +290,10 @@ export default function ReportsPage() {
 
       <ScheduledReportPanel />
 
+      {device !== "ev" ? (
+        <ReportPreview category={category} period={period} />
+      ) : (
+      <>
       <Panel className="mt-4">
         <div className="flex items-center justify-between border-b border-border pb-4">
           <div className="flex items-center gap-3">
@@ -285,6 +367,8 @@ export default function ReportsPage() {
           )}
         </Panel>
       </div>
+      </>
+      )}
     </div>
   );
 }

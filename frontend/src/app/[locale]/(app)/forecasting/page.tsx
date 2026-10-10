@@ -8,6 +8,10 @@ import PageHeader from "@/components/shared/PageHeader";
 import Panel, { Skeleton, ErrorBox } from "@/components/shared/Panel";
 import DataSourceBadge from "@/components/shared/DataSourceBadge";
 import KpiCard from "@/components/shared/KpiCard";
+import { useDeviceType } from "@/lib/deviceType";
+import SolarForecast from "@/components/forecasting/SolarForecast";
+import BatteryForecast from "@/components/forecasting/BatteryForecast";
+import FleetForecast from "@/components/forecasting/FleetForecast";
 
 interface ForecastPoint { time: string; value: number; lower: number; upper: number }
 interface ForecastResp {
@@ -29,7 +33,16 @@ interface NetworkBacktest { stationsEvaluated: number; overallByHorizon: Horizon
 const fmtDay = (iso: string) =>
   new Date(iso + "T00:00:00Z").toLocaleDateString("en-GB", { weekday: "short", day: "numeric" });
 
+/** Follows the Energy Devices switcher. */
 export default function ForecastingPage() {
+  const { device } = useDeviceType();
+  if (device === "fleet") return <FleetForecast />;
+  if (device === "solar") return <SolarForecast />;
+  if (device === "battery") return <BatteryForecast />;
+  return <EvForecasting />;
+}
+
+function EvForecasting() {
   const { data, error } = useSWR<ForecastResp>("/forecasting?horizon=14d", fetcher, { refreshInterval: 300000 });
   const { data: accuracy } = useSWR<NetworkBacktest>("/ani/forecast-accuracy", fetcher);
   const chart = (data?.points ?? []).map((p) => ({ ...p, label: fmtDay(p.time) }));

@@ -38,6 +38,8 @@ export function EnquiryModal({ open, onOpenChange, product, mode, pricing, confi
 
   useEffect(() => {
     if (open) {
+      // Reset the form each time it opens, prefilled for this product/user.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setName(user?.name || "");
       setEmail(user?.email || "");
       setPhone("");

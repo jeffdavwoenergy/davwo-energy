@@ -22,6 +22,10 @@ import StatusPill from "@/components/shared/StatusPill";
 import DataSourceBadge from "@/components/shared/DataSourceBadge";
 import CarbonGauge from "@/components/shared/CarbonGauge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useDeviceType } from "@/lib/deviceType";
+import FleetDashboard from "@/components/dashboard/FleetDashboard";
+import SolarDashboard from "@/components/dashboard/SolarDashboard";
+import BatteryDashboard from "@/components/dashboard/BatteryDashboard";
 
 interface Metrics {
   active_chargers: number;
@@ -61,12 +65,21 @@ interface SmartWindow {
 
 const SEV_TONE = { high: "critical", medium: "warning", low: "info" } as const;
 
+/** Follows the Energy Devices switcher: each device type has its own dashboard. */
 export default function DashboardPage() {
+  const { device } = useDeviceType();
+  if (device === "fleet") return <FleetDashboard />;
+  if (device === "solar") return <SolarDashboard />;
+  if (device === "battery") return <BatteryDashboard />;
+  return <EvDashboard />;
+}
+
+function EvDashboard() {
   const [period, setPeriod] = useState<"day" | "week" | "month">("day");
   const metrics = useSWR<Metrics>("/dashboard/metrics", fetcher, { refreshInterval: 30000 });
   const series = useSWR<SeriesResp>(`/dashboard/energy-series?period=${period}`, fetcher, { refreshInterval: 60000 });
   const rec = useSWR<Recommendation>("/dashboard/recommendation", fetcher);
-  const alerts = useSWR<Alert[]>("/alerts", fetcher, { refreshInterval: 60000 });
+  const alerts = useSWR<Alert[]>("/alerts?device=ev", fetcher, { refreshInterval: 60000 });
   const opt = useSWR<Optimisation>("/optimisation", fetcher, { refreshInterval: 300000 });
   const smart = useSWR<SmartWindow>("/grid/smart-window", fetcher, { refreshInterval: 300000 });
   const assets = useSWR<AssetSummary[]>("/assets", fetcher, { refreshInterval: 60000 });

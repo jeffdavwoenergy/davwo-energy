@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
 import { getAsset, updateAsset, deleteAsset } from "@/lib/server/providers";
 import { withTenant, withMutateTenant, currentOrg, UnauthorizedError, ForbiddenError } from "@/lib/server/context";
-import type { AssetStatus } from "@/lib/server/assetsStore";
+import type { AssetStatus, AssetSpecs } from "@/lib/server/assetsStore";
+import { parseSpecs, type AssetType } from "@/lib/assetSpecs";
 
 export const dynamic = "force-dynamic";
 
 const STATUSES: AssetStatus[] = ["healthy", "degraded", "down"];
+
+class SpecsError extends Error {}
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -38,19 +41,31 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   }
 
   try {
-    const asset = await withMutateTenant(req, () =>
-      updateAsset(currentOrg(), id, {
+    const asset = await withMutateTenant(req, async () => {
+      // specs are merged onto the stored ones and re-validated for the
+      // asset's own type (a PATCH can never change the type).
+      let specs: AssetSpecs | undefined;
+      if (body?.specs !== undefined) {
+        const existing = await getAsset(currentOrg(), id);
+        if (!existing || existing.source !== "user") return undefined;
+        const parsed = parseSpecs(existing.type as AssetType, { ...existing.specs, ...body.specs }, { partial: true });
+        if (parsed.error) throw new SpecsError(parsed.error);
+        specs = parsed.specs;
+      }
+      return updateAsset(currentOrg(), id, {
         status: status as AssetStatus | undefined,
         manufacturer: body?.manufacturer,
         model: body?.model,
         serial_number: body?.serial_number,
         installed_at,
         product_id: body?.product_id,
-      }),
-    );
+        specs,
+      });
+    });
     if (!asset) return NextResponse.json({ detail: "Asset not found" }, { status: 404 });
     return NextResponse.json(asset);
   } catch (err) {
+    if (err instanceof SpecsError) return NextResponse.json({ detail: err.message }, { status: 400 });
     if (err instanceof UnauthorizedError) {
       return NextResponse.json({ detail: "Unauthorized" }, { status: 401 });
     }

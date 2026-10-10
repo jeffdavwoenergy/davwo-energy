@@ -15,11 +15,12 @@ export async function streamChat(
   onDelta: (chunk: string) => void,
   onDone: (answer: ChatAnswer) => void,
   onError: (detail: string) => void,
+  device?: string,
 ) {
   const res = await fetch("/api/ani/chat", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken() ?? ""}` },
-    body: JSON.stringify({ message, context }),
+    body: JSON.stringify({ message, context, device }),
   });
   if (!res.ok || !res.body) {
     onError("Sorry — I couldn't reach the data services just now. Please try again.");

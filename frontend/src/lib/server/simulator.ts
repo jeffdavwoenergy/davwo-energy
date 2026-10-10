@@ -143,6 +143,12 @@ export type Alert = {
   created_at: string;
   acknowledged_at?: string;
   resolved_at?: string;
+  /** Which Energy Devices type this alert belongs to (EV chargers if unset). */
+  device?: "ev" | "solar" | "battery" | "fleet";
+  detail?: string;
+  action?: string;
+  /** In-app page that shows the affected device. */
+  href?: string;
 };
 
 export function alerts(): Alert[] {
@@ -165,7 +171,7 @@ export function alerts(): Alert[] {
   return [
     mk("al-1", "high", "Peak demand approaching capacity", "Rapid Charger Cluster", "Bristol", 12),
     mk("al-2", "medium", "Recurring fault on Port B", "Central Depot / Port B", "Birmingham", 48),
-    mk("al-3", "medium", "Maintenance due within 7 days", "Battery Bank 2", "Manchester", 95),
+    { ...mk("al-3", "medium", "Maintenance due within 7 days", "Battery Bank 2", "Manchester", 95), device: "battery" },
     mk("al-4", "low", "Underutilised site this week", "Riverside Point", "Leeds", 180),
   ];
 }

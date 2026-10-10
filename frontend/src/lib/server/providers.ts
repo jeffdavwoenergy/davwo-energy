@@ -13,15 +13,16 @@ import { backtestNetwork, type NetworkBacktest } from "@/lib/ani/evaluation";
 import { getAlertStates, setAlertState, claimAlertState, type AlertStatus, type AlertStateRecord } from "@/lib/server/alertState";
 import {
   listUserAssets, getUserAsset, addUserAsset, updateUserAsset, removeUserAsset,
-  type UserAsset, type NewAssetInput, type AssetUpdate,
+  type UserAsset, type NewAssetInput, type AssetUpdate, type AssetSpecs,
 } from "@/lib/server/assetsStore";
 import { listReadingsForOrg, type AssetReading } from "@/lib/server/assetReadings";
+import { deviceAlerts, DEVICE_ALERT_PREFIX } from "@/lib/server/deviceInsights";
 import { listOrgUsers, getPreferences, findById } from "@/lib/server/users";
 import { sendEmail, emailShell, escapeHtml, isEmailConfigured } from "@/lib/server/email";
 import type { Reading } from "@/lib/ani/dataGenerator";
 import { getRegionProviders, type RegionProviders } from "@/lib/data/regions";
 import { resolveTenant } from "@/lib/server/tenants";
-import type { MapPin } from "@/lib/data/types";
+import type { MapPin, PriceSlot } from "@/lib/data/types";
 import { USE_REAL_DATA } from "@/lib/data/config";
 
 const sum = (a: number[]) => a.reduce((s, x) => s + x, 0);
@@ -307,6 +308,7 @@ async function assetFaultAlerts(orgId: string, states: Map<string, AlertStateRec
     if (!fault) continue;
     out.push({
       id,
+      device: ASSET_DEVICE[a.type],
       severity: fault.kind === "offline" ? "high" : "medium",
       status: st.status,
       title: fault.kind === "offline" ? `${a.name} is offline` : `${a.name} is degraded`,
@@ -320,14 +322,21 @@ async function assetFaultAlerts(orgId: string, states: Map<string, AlertStateRec
   return out;
 }
 
+const ASSET_DEVICE: Record<UserAsset["type"], NonNullable<Alert["device"]>> = {
+  "EV Charger": "ev", Solar: "solar", Battery: "battery", Vehicle: "fleet",
+};
+
+/** Every alert for the org — EV-engine alerts, the org's own asset faults and
+ * the Solar/Battery/Fleet device alerts — overlaid with ack/resolve state. */
 export async function alertsWithState(orgId: string): Promise<Alert[]> {
-  const base = syntheticAlerts();
   const states = await getAlertStates(orgId);
-  const synthetic = base.map((a) => {
+  const withState = (a: Alert) => {
     const st = states.get(a.id);
     return st ? { ...a, ...st } : a;
-  });
-  return [...synthetic, ...(await assetFaultAlerts(orgId, states))];
+  };
+  const synthetic = syntheticAlerts().map((a) => withState({ ...a, device: a.device ?? "ev" }));
+  const devices = (await deviceAlerts(orgId)).map(withState);
+  return [...synthetic, ...devices, ...(await assetFaultAlerts(orgId, states))];
 }
 
 export interface ProactiveAlertCheck { newFaults: number; resolved: number; emailed: string[] }
@@ -613,6 +622,13 @@ export async function notifications(orgId: string): Promise<{ items: Notificatio
 /** Throws if the alert id doesn't exist in the synthetic set — callers turn
  * that into a 404 rather than letting arbitrary ids silently "succeed". */
 export async function updateAlertStatus(orgId: string, alertId: string, status: AlertStatus): Promise<Alert> {
+  if (alertId.startsWith(DEVICE_ALERT_PREFIX)) {
+    // Only alerts the org's devices are raising right now can be updated.
+    const alert = (await deviceAlerts(orgId)).find((a) => a.id === alertId);
+    if (!alert) throw new Error("Alert not found");
+    await setAlertState(orgId, alertId, status);
+    return { ...alert, ...(await getAlertStates(orgId)).get(alertId) };
+  }
   if (alertId.startsWith(ASSET_FAULT_PREFIX)) {
     const asset = await getUserAsset(orgId, alertId.slice(ASSET_FAULT_PREFIX.length));
     if (!asset) throw new Error("Alert not found");
@@ -621,6 +637,7 @@ export async function updateAlertStatus(orgId: string, alertId: string, status: 
     const st = (await getAlertStates(orgId)).get(alertId)!;
     return {
       id: alertId,
+      device: ASSET_DEVICE[asset.type],
       severity: fault?.kind === "offline" ? "high" : "medium",
       status,
       title: fault ? (fault.kind === "offline" ? `${asset.name} is offline` : `${asset.name} is degraded`) : `${asset.name} fault cleared`,
@@ -655,6 +672,7 @@ export interface AssetRow {
   serial_number?: string;
   installed_at?: string;
   product_id?: string;
+  specs?: AssetSpecs;
 }
 
 // Illustrative Battery/Solar entries — the underlying engine only models EV
@@ -719,7 +737,7 @@ export async function assets(orgId: string): Promise<AssetRow[]> {
     type: a.type,
     site: a.site,
     capacity_kw: a.capacity_kw,
-    ports: 1,
+    ports: Number(a.specs?.ports) || 1,
     status: a.status,
     utilisation_pct: a.utilisation_pct,
     current_load_kw: a.current_load_kw,
@@ -730,6 +748,7 @@ export async function assets(orgId: string): Promise<AssetRow[]> {
     serial_number: a.serial_number,
     installed_at: a.installed_at,
     product_id: a.product_id,
+    specs: a.specs,
   }));
 
   return [...evAssets, ...PREVIEW_ASSETS, ...userRows];
@@ -747,7 +766,7 @@ export async function createAsset(orgId: string, input: NewAssetInput): Promise<
     type: asset.type,
     site: asset.site,
     capacity_kw: asset.capacity_kw,
-    ports: 1,
+    ports: Number(asset.specs?.ports) || 1,
     status: asset.status,
     utilisation_pct: asset.utilisation_pct,
     current_load_kw: asset.current_load_kw,
@@ -758,6 +777,7 @@ export async function createAsset(orgId: string, input: NewAssetInput): Promise<
     serial_number: asset.serial_number,
     installed_at: asset.installed_at,
     product_id: asset.product_id,
+    specs: asset.specs,
   };
 }
 
@@ -773,7 +793,7 @@ export async function updateAsset(orgId: string, id: string, updates: AssetUpdat
     type: asset.type,
     site: asset.site,
     capacity_kw: asset.capacity_kw,
-    ports: 1,
+    ports: Number(asset.specs?.ports) || 1,
     status: asset.status,
     utilisation_pct: asset.utilisation_pct,
     current_load_kw: asset.current_load_kw,
@@ -784,6 +804,7 @@ export async function updateAsset(orgId: string, id: string, updates: AssetUpdat
     serial_number: asset.serial_number,
     installed_at: asset.installed_at,
     product_id: asset.product_id,
+    specs: asset.specs,
   };
 }
 
@@ -897,6 +918,12 @@ export async function checkAutoOptimise(
 // ----------------------------------------------------------------------------
 // Price curve — today's live Agile half-hourly rates + cheapest window.
 // ----------------------------------------------------------------------------
+/** Raw upcoming half-hourly prices for the org's market (null if unavailable). */
+export async function priceSlots(orgId?: string): Promise<PriceSlot[] | null> {
+  if (!USE_REAL_DATA) return null;
+  return (await regionFor(orgId)).fetchPriceWindow();
+}
+
 export async function priceCurve(orgId?: string) {
   const region = await regionFor(orgId);
   const slots = USE_REAL_DATA ? await region.fetchPriceWindow() : null;

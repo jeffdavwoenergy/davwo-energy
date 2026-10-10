@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { streamAnswer } from "@/lib/ani/assistant";
+import { streamAnswer, type ChatDevice } from "@/lib/ani/assistant";
 import { getAuth } from "@/lib/server/auth";
 import { withTenant, currentOrg, tenantJson, UnauthorizedError } from "@/lib/server/context";
 import { rateLimit, clientKey } from "@/lib/server/rateLimit";
@@ -41,6 +41,7 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}));
   const message: string = (body?.message ?? "").toString().slice(0, 500).trim();
   const context: string = (body?.context ?? "").toString().slice(0, 100);
+  const device = ["ev", "solar", "battery", "fleet"].includes(body?.device) ? (body.device as ChatDevice) : undefined;
   if (!message) return NextResponse.json({ detail: "Empty message" }, { status: 400 });
 
   const claims = await getAuth(req);
@@ -54,7 +55,7 @@ export async function POST(req: Request) {
           await saveChatMessage(orgId, claims.sub, "user", { text: message });
           const answer = await streamAnswer(message, context || undefined, (chunk) => {
             controller.enqueue(sseEvent("intro_delta", { chunk }));
-          });
+          }, device);
           // The client already has the full answer via streamed deltas — a
           // history-write hiccup here must not discard it or surface as an
           // error, so this is deliberately outside the outer try/catch's reach.

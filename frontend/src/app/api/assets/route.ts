@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
 import { assets, createAsset } from "@/lib/server/providers";
 import { tenantJson, withMutateTenant, currentOrg, UnauthorizedError, ForbiddenError } from "@/lib/server/context";
-import type { AssetType } from "@/lib/server/assetsStore";
+import { ASSET_TYPES, parseSpecs, type AssetType } from "@/lib/assetSpecs";
 
 export const dynamic = "force-dynamic";
 
-const ASSET_TYPES: AssetType[] = ["EV Charger", "Battery", "Solar"];
 
 export async function GET(req: Request) {
   return tenantJson(req, () => assets(currentOrg()));
@@ -32,12 +31,15 @@ export async function POST(req: Request) {
   if (installed_at && Number.isNaN(new Date(installed_at).getTime())) {
     return NextResponse.json({ detail: "installed_at must be a valid date" }, { status: 400 });
   }
+  const { specs, error: specsError } = parseSpecs(type as AssetType, body?.specs);
+  if (specsError) return NextResponse.json({ detail: specsError }, { status: 400 });
 
   try {
     const asset = await withMutateTenant(req, () =>
       createAsset(currentOrg(), {
         name, type: type as AssetType, site, capacity_kw,
         manufacturer, model, serial_number, installed_at, product_id,
+        specs: Object.keys(specs).length ? specs : undefined,
       }),
     );
     return NextResponse.json(asset, { status: 201 });

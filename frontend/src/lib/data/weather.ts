@@ -52,3 +52,34 @@ export async function fetchWeather(lat: number, lon: number, timezone: string): 
     drivers,
   };
 }
+
+export interface DailyWeather {
+  date: string; // YYYY-MM-DD
+  temp_min_c: number;
+  temp_max_c: number;
+  /** Total sunshine energy on a flat surface, kWh/m² (≈ "peak sun hours"). */
+  sun_kwh_m2: number;
+  cloud_pct: number;
+}
+
+/** Multi-day forecast (Open-Meteo daily) — drives the solar generation and
+ * fleet cold-weather range forecasts. null when unavailable. */
+export async function fetchDailyWeather(lat: number, lon: number, timezone: string, days = 7): Promise<DailyWeather[] | null> {
+  const url =
+    `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
+    `&daily=temperature_2m_min,temperature_2m_max,shortwave_radiation_sum,cloud_cover_mean` +
+    `&forecast_days=${days}&timezone=${encodeURIComponent(timezone)}`;
+  const data = await getJSON<{
+    daily: { time: string[]; temperature_2m_min: number[]; temperature_2m_max: number[]; shortwave_radiation_sum: number[]; cloud_cover_mean: number[] };
+  }>(url, 1800);
+  const d = data?.daily;
+  if (!d?.time?.length) return null;
+  return d.time.map((date, i) => ({
+    date,
+    temp_min_c: +(d.temperature_2m_min[i] ?? 0).toFixed(1),
+    temp_max_c: +(d.temperature_2m_max[i] ?? 0).toFixed(1),
+    // Open-Meteo gives MJ/m²; 3.6 MJ = 1 kWh.
+    sun_kwh_m2: +((d.shortwave_radiation_sum[i] ?? 0) / 3.6).toFixed(2),
+    cloud_pct: Math.round(d.cloud_cover_mean[i] ?? 0),
+  }));
+}

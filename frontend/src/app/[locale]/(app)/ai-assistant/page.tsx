@@ -6,6 +6,8 @@ import { toast } from "sonner";
 import api from "@/lib/api";
 import type { Block } from "@/lib/ani/blocks";
 import { streamChat } from "@/lib/ani/streamChat";
+import { DEVICE_PROMPTS } from "@/lib/ani/devicePrompts";
+import { useDeviceType } from "@/lib/deviceType";
 import PageHeader from "@/components/shared/PageHeader";
 import RenderBlock from "@/components/ani/RenderBlock";
 import { Button } from "@/components/ui/button";
@@ -33,6 +35,8 @@ const SUGGESTED = [
 ];
 
 export default function AiAssistantPage() {
+  const { device } = useDeviceType();
+  const suggested = device === "ev" ? SUGGESTED : [...DEVICE_PROMPTS[device], ...SUGGESTED.slice(0, 2)];
   const [messages, setMessages] = useState<Msg[]>([]);
   const [historyLoaded, setHistoryLoaded] = useState(false);
   const [input, setInput] = useState("");
@@ -78,6 +82,7 @@ export default function AiAssistantPage() {
           next[next.length - 1] = { role: "assistant", text: detail };
           return next;
         }),
+        device,
       );
     } catch {
       setMessages((m) => {
@@ -123,7 +128,7 @@ export default function AiAssistantPage() {
               recommendations — rendered as charts and tables, not walls of text. Try one of these:
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
-              {SUGGESTED.map((s) => (
+              {suggested.map((s) => (
                 <Button
                   key={s}
                   variant="secondary"

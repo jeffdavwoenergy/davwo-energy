@@ -62,6 +62,12 @@ export async function withMutateTenant<T>(req: Request, fn: () => Promise<T> | T
   return als.run({ seed: tenantSeed(claims.org), orgId: claims.org }, async () => fn());
 }
 
+/** Runs fn as the given org (its seed + id) without a request — for callers
+ * that already resolved the org themselves (e.g. the email digest). */
+export function asTenant<T>(orgId: string, fn: () => Promise<T> | T): Promise<T> {
+  return als.run({ seed: tenantSeed(orgId), orgId }, async () => fn());
+}
+
 /** withTenant + JSON response, translating a missing/invalid token into a 401. */
 export async function tenantJson<T>(req: Request, fn: () => Promise<T> | T): Promise<Response> {
   try {

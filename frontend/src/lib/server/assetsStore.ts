@@ -1,8 +1,9 @@
 import { randomUUID } from "node:crypto";
 import type { AssetType as PrismaAssetType, AssetStatus as PrismaAssetStatus } from "@prisma/client";
 import { getPrisma, isDbConfigured } from "@/lib/server/prisma";
+import type { AssetType, AssetSpecs } from "@/lib/assetSpecs";
 
-export type AssetType = "EV Charger" | "Battery" | "Solar";
+export type { AssetType, AssetSpecs };
 export type AssetStatus = "healthy" | "degraded" | "down";
 
 export interface UserAsset {
@@ -21,6 +22,8 @@ export interface UserAsset {
   serial_number?: string;
   installed_at?: string;
   product_id?: string;
+  /** Type-specific fields (vehicle reg/battery, solar panel count, …) — see assetSpecs.ts. */
+  specs?: AssetSpecs;
   createdAt: string;
   updatedAt: string;
 }
@@ -35,6 +38,7 @@ export interface NewAssetInput {
   serial_number?: string;
   installed_at?: string;
   product_id?: string;
+  specs?: AssetSpecs;
 }
 
 export interface AssetUpdate {
@@ -46,6 +50,8 @@ export interface AssetUpdate {
   product_id?: string;
   current_load_kw?: number;
   utilisation_pct?: number;
+  /** Replaces the stored specs (callers merge + validate first). */
+  specs?: AssetSpecs;
 }
 
 /** Per-instance fallback when no DB is configured — same accepted limitation
@@ -57,11 +63,13 @@ const TYPE_TO_DB: Record<AssetType, PrismaAssetType> = {
   "EV Charger": "EV_CHARGER",
   Battery: "BATTERY",
   Solar: "SOLAR",
+  Vehicle: "VEHICLE",
 };
 const TYPE_FROM_DB: Record<PrismaAssetType, AssetType> = {
   EV_CHARGER: "EV Charger",
   BATTERY: "Battery",
   SOLAR: "Solar",
+  VEHICLE: "Vehicle",
 };
 
 function fromRow(row: {
@@ -69,7 +77,7 @@ function fromRow(row: {
   status: PrismaAssetStatus; utilisationPct: number; currentLoadKw: number;
   locationLat: number | null; locationLng: number | null;
   manufacturer: string | null; model: string | null; serialNumber: string | null;
-  installedAt: Date | null; productId: string | null; createdAt: Date; updatedAt: Date;
+  installedAt: Date | null; productId: string | null; specs?: unknown; createdAt: Date; updatedAt: Date;
 }): UserAsset {
   return {
     id: row.id,
@@ -87,6 +95,7 @@ function fromRow(row: {
     serial_number: row.serialNumber ?? undefined,
     installed_at: row.installedAt ? row.installedAt.toISOString() : undefined,
     product_id: row.productId ?? undefined,
+    specs: row.specs && typeof row.specs === "object" ? (row.specs as AssetSpecs) : undefined,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -124,6 +133,7 @@ export async function addUserAsset(orgId: string, input: NewAssetInput): Promise
     serial_number: input.serial_number,
     installed_at: input.installed_at,
     product_id: input.product_id,
+    specs: input.specs,
     createdAt: now,
     updatedAt: now,
   };
@@ -151,6 +161,7 @@ export async function addUserAsset(orgId: string, input: NewAssetInput): Promise
       serialNumber: asset.serial_number,
       installedAt: asset.installed_at ? new Date(asset.installed_at) : undefined,
       productId: asset.product_id,
+      ...(asset.specs ? { specs: asset.specs } : {}),
     },
   });
   return asset;
@@ -173,6 +184,7 @@ export async function updateUserAsset(orgId: string, id: string, updates: AssetU
     if (updates.product_id !== undefined) asset.product_id = updates.product_id;
     if (updates.current_load_kw !== undefined) asset.current_load_kw = updates.current_load_kw;
     if (updates.utilisation_pct !== undefined) asset.utilisation_pct = updates.utilisation_pct;
+    if (updates.specs !== undefined) asset.specs = updates.specs;
     asset.updatedAt = new Date().toISOString();
     return asset;
   }
@@ -190,6 +202,7 @@ export async function updateUserAsset(orgId: string, id: string, updates: AssetU
       ...(updates.product_id !== undefined ? { productId: updates.product_id } : {}),
       ...(updates.current_load_kw !== undefined ? { currentLoadKw: updates.current_load_kw } : {}),
       ...(updates.utilisation_pct !== undefined ? { utilisationPct: updates.utilisation_pct } : {}),
+      ...(updates.specs !== undefined ? { specs: updates.specs } : {}),
     },
   });
   return fromRow(doc);

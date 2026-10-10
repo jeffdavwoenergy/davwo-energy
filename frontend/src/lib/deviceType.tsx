@@ -34,6 +34,8 @@ export function DeviceProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     try {
       const v = window.localStorage.getItem(key) as DeviceType | null;
+      // Browser-only storage, read after mount (server render uses "ev").
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setDeviceState(v && DEVICES.some((d) => d.id === v) ? v : "ev");
     } catch {
       setDeviceState("ev");

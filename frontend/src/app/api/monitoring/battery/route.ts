@@ -1,8 +1,13 @@
 import { batteryMonitoring } from "@/lib/server/deviceMonitoring";
-import { tenantJson } from "@/lib/server/context";
+import { tenantJson, currentOrg } from "@/lib/server/context";
+import { listUserAssets } from "@/lib/server/assetsStore";
 
 export const dynamic = "force-dynamic";
 
+/** The org's own registered Battery assets replace the demo set when present. */
 export async function GET(req: Request) {
-  return tenantJson(req, () => batteryMonitoring());
+  return tenantJson(req, async () => {
+    const mine = (await listUserAssets(currentOrg())).filter((a) => a.type === "Battery");
+    return batteryMonitoring(mine);
+  });
 }

@@ -13,6 +13,8 @@ import Panel, { Skeleton, ErrorBox, EmptyBox } from "@/components/shared/Panel";
 import DataSourceBadge from "@/components/shared/DataSourceBadge";
 import KpiCard from "@/components/shared/KpiCard";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useDeviceType } from "@/lib/deviceType";
+import { FleetAnalyticsView, SolarAnalyticsView, BatteryAnalyticsView } from "@/components/analytics/DeviceAnalytics";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
@@ -67,7 +69,16 @@ const FUEL_COLORS: Record<string, string> = {
 };
 const colorFor = (name: string) => FUEL_COLORS[name.toLowerCase()] ?? "#94a3b8";
 
+/** Follows the Energy Devices switcher. */
 export default function AnalyticsPage() {
+  const { device } = useDeviceType();
+  if (device === "fleet") return <FleetAnalyticsView />;
+  if (device === "solar") return <SolarAnalyticsView />;
+  if (device === "battery") return <BatteryAnalyticsView />;
+  return <EvAnalytics />;
+}
+
+function EvAnalytics() {
   const [period, setPeriod] = useState<Period>("week");
   const [customRange, setCustomRange] = useState<{ from: string; to: string } | null>(null);
   const [rangeFrom, setRangeFrom] = useState("");

@@ -11,7 +11,7 @@ export const MARKET_LABEL: Record<Market, string> = { uk: "United Kingdom", eu: 
 export interface ReportSchedule {
   enabled: boolean;
   period: "daily" | "weekly" | "monthly";
-  category: "energy" | "asset" | "carbon" | "ani";
+  category: "energy" | "asset" | "carbon" | "ani" | "fleet" | "drivers" | "solar" | "battery";
 }
 
 export interface Preferences {

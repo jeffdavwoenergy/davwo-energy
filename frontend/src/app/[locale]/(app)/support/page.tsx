@@ -120,7 +120,7 @@ export default function SupportPage() {
         <GlowCard className="p-6 lg:col-span-2">
           <h2 className="text-sm font-semibold text-foreground">Open a new ticket</h2>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Tell us what you need and we'll route it to the right team.
+            Tell us what you need and we&apos;ll route it to the right team.
           </p>
           <form onSubmit={submit} className="mt-4 space-y-4">
             <div>

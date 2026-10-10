@@ -88,7 +88,7 @@ export function parseAssetsCsv(text: string, maxRows = 500): CsvParseResult {
     const installed_at = idx.installed_at !== undefined ? (cells[idx.installed_at] ?? "").trim() : "";
 
     if (!name || !site) { errors.push(`Row ${rowNo}: name and site are required.`); continue; }
-    if (!type) { errors.push(`Row ${rowNo}: unknown type "${cells[idx.type!] ?? ""}" (use EV Charger, Battery or Solar).`); continue; }
+    if (!type) { errors.push(`Row ${rowNo}: unknown type "${cells[idx.type!] ?? ""}" (use EV Charger, Battery or Solar — add vehicles with Add device).`); continue; }
     if (!Number.isFinite(capacity) || capacity <= 0) { errors.push(`Row ${rowNo}: capacity_kw must be a positive number.`); continue; }
     if (installed_at && Number.isNaN(new Date(installed_at).getTime())) { errors.push(`Row ${rowNo}: installed_at "${installed_at}" is not a valid date.`); continue; }
 

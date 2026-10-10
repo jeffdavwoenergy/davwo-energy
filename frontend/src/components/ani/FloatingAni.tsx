@@ -6,6 +6,8 @@ import { MessageCircle, X, Send, Loader2 } from "lucide-react";
 import api from "@/lib/api";
 import type { Block } from "@/lib/ani/blocks";
 import { streamChat } from "@/lib/ani/streamChat";
+import { DEVICE_PROMPTS } from "@/lib/ani/devicePrompts";
+import { useDeviceType } from "@/lib/deviceType";
 import RenderBlock from "@/components/ani/RenderBlock";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,7 +48,10 @@ export default function FloatingAni() {
   const [loading, setLoading] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
 
-  const prompts = PROMPTS[Object.keys(PROMPTS).find((p) => pathname.startsWith(p)) ?? ""] ?? DEFAULT_PROMPTS;
+  const { device } = useDeviceType();
+  const prompts = device !== "ev"
+    ? DEVICE_PROMPTS[device]
+    : PROMPTS[Object.keys(PROMPTS).find((p) => pathname.startsWith(p)) ?? ""] ?? DEFAULT_PROMPTS;
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, loading, briefing]);
 
@@ -83,6 +88,7 @@ export default function FloatingAni() {
           next[next.length - 1] = { role: "assistant", text: detail };
           return next;
         }),
+        device,
       );
     } catch {
       setMessages((m) => {

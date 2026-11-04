@@ -7,6 +7,7 @@ import { DavwoHero } from "@/components/landing/DavwoHero";
 import { CleanEnergyCardCarousel } from "@/components/landing/CleanEnergyCardCarousel";
 import { PopularListings } from "@/components/landing/PopularListings";
 import { TasteBanner } from "@/components/landing/TasteBanner";
+import { MissionVision } from "@/components/landing/MissionVision";
 import { HowDavwoWorks } from "@/components/landing/HowDavwoWorks";
 import { ShowcaseGallery } from "@/components/landing/ShowcaseGallery";
 import { LandingFooter } from "@/components/landing/LandingFooter";
@@ -53,6 +54,8 @@ export default function Landing() {
         <TasteBanner />
 
         <HowDavwoWorks onOpenMarketplace={scrollToListings} />
+
+        <MissionVision onOpenMarketplace={goProducts} />
 
         <ShowcaseGallery onJoinMarketplace={goProducts} />
       </main>

@@ -2,43 +2,84 @@
 
 import { Sparkles } from "lucide-react";
 
+/** Energy-industry brands for the logo rows. Icons are from Simple Icons
+ * (CC0, simpleicons.org), saved in public/landing/brands so nothing loads
+ * from a third party at runtime; the trademarks belong to their owners.
+ * `wordmark` logos already spell the name, so they show alone at their
+ * natural width (the value is their width:height ratio — their SVGs are
+ * cropped to the outline); the rest are icons shown beside the name. */
+type Brand = { slug: string; name: string; wordmark?: number };
+const ROW_ONE: Brand[] = [
+  { slug: "tesla", name: "Tesla" },
+  { slug: "siemens", name: "Siemens", wordmark: 6.05 },
+  { slug: "schneiderelectric", name: "Schneider Electric" },
+  { slug: "generalelectric", name: "GE" },
+  { slug: "shell", name: "Shell" },
+  { slug: "nationalgrid", name: "National Grid", wordmark: 4.85 },
+  { slug: "polestar", name: "Polestar" },
+];
+const ROW_TWO: Brand[] = [
+  { slug: "panasonic", name: "Panasonic", wordmark: 6.53 },
+  { slug: "lg", name: "LG", wordmark: 2.27 },
+  { slug: "samsung", name: "Samsung", wordmark: 6.54 },
+  { slug: "huawei", name: "Huawei" },
+  { slug: "hitachi", name: "Hitachi", wordmark: 6.19 },
+  { slug: "mitsubishi", name: "Mitsubishi" },
+  { slug: "bosch", name: "Bosch" },
+];
+
+const maskOf = (slug: string) => `url(/landing/brands/${slug}.svg) center / contain no-repeat`;
+
+function LogoRow({ brands, direction }: { brands: Brand[]; direction: "left" | "right" }) {
+  return (
+    <div className="group relative overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_10%,black_90%,transparent)]">
+      <ul
+        className={`flex w-max py-2 ${direction === "left" ? "animate-marquee-left" : "animate-marquee-right"} group-hover:[animation-play-state:paused] motion-reduce:animate-none`}
+      >
+        {/* Rendered twice for a seamless loop; the copy is hidden from screen readers. */}
+        {[...brands, ...brands].map((b, i) => (
+          <li key={`${b.slug}-${i}`} aria-hidden={i >= brands.length} className="flex shrink-0 items-center gap-2.5 pr-10 sm:pr-14 text-slate-500 transition-colors hover:text-slate-900">
+            {b.wordmark ? (
+              <span
+                role="img"
+                aria-label={b.name}
+                // Wide wordmarks are short so their letters match the
+                // other names; LG's face + letters gets a taller box.
+                className={`bg-current ${b.wordmark < 3 ? "h-7 sm:h-8" : "h-4 sm:h-5"}`}
+                style={{ aspectRatio: b.wordmark, mask: maskOf(b.slug), WebkitMask: maskOf(b.slug) }}
+              />
+            ) : (
+              <>
+                <span className="h-6 w-6 sm:h-7 sm:w-7 bg-current" style={{ mask: maskOf(b.slug), WebkitMask: maskOf(b.slug) }} aria-hidden />
+                <span className="text-sm sm:text-base font-semibold tracking-tight whitespace-nowrap">{b.name}</span>
+              </>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 export function TasteBanner() {
   return (
-    <section className="w-full relative bg-white py-14 sm:py-[72px] md:py-24 lg:py-28 overflow-hidden select-none min-h-[260px] sm:min-h-[300px] md:min-h-[340px] flex items-center justify-center">
-      <div className="absolute inset-0 bg-gradient-to-r from-[#22d3ee] via-[#10b981] to-[#059669] opacity-95" />
-
-      <div className="absolute inset-0 opacity-20 pointer-events-none mix-blend-overlay">
-        <svg className="w-full h-full object-cover" viewBox="0 0 1440 360" fill="none" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M0,140 C320,240, 480,60, 800,180 C1120,300, 1280,120, 1440,160 L1440,360 L0,360 Z" fill="white" />
-          <path d="M0,200 C240,100, 600,260, 960,140 C1200,60, 1360,220, 1440,180 L1440,360 L0,360 Z" fill="white" opacity="0.6" />
-        </svg>
-      </div>
-
-      <div className="absolute top-0 left-0 right-0 h-12 sm:h-16 md:h-20 bg-gradient-to-b from-white via-white/80 to-transparent pointer-events-none z-10" />
-      <div className="absolute top-0 left-0 right-0 pointer-events-none z-10 overflow-hidden leading-none">
-        <svg viewBox="0 0 1440 60" fill="none" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-6 sm:h-9 md:h-12">
-          <path d="M0,0 L1440,0 L1440,15 C1150,55 850,5 450,45 C220,65 80,30 0,22 Z" fill="#ffffff" />
-        </svg>
-      </div>
-
-      <div className="absolute bottom-0 left-0 right-0 h-12 sm:h-16 md:h-20 bg-gradient-to-t from-white via-white/80 to-transparent pointer-events-none z-10" />
-      <div className="absolute bottom-0 left-0 right-0 pointer-events-none z-10 overflow-hidden leading-none">
-        <svg viewBox="0 0 1440 60" fill="none" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-6 sm:h-9 md:h-12">
-          <path d="M0,45 C350,10 750,58 1100,22 C1260,6 1380,30 1440,38 L1440,60 L0,60 Z" fill="#ffffff" />
-        </svg>
-      </div>
-
+    <section className="w-full relative bg-white py-14 sm:py-[72px] md:py-24 select-none overflow-hidden">
       <div className="relative z-20 max-w-3xl md:max-w-4xl mx-auto px-4 sm:px-6 md:px-8 text-center">
-        <div className="inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-1 sm:py-1.5 rounded-full bg-white/20 backdrop-blur-md text-white text-[11px] sm:text-xs font-semibold uppercase tracking-wider mb-2.5 sm:mb-3.5 shadow-sm border border-white/30">
-          <Sparkles className="w-3.5 h-3.5 text-amber-200" />
+        <div className="inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-1 sm:py-1.5 rounded-full bg-emerald-50 text-emerald-700 text-[11px] sm:text-xs font-semibold uppercase tracking-wider mb-2.5 sm:mb-3.5 border border-emerald-200">
+          <Sparkles className="w-3.5 h-3.5 text-amber-500" />
           <span>The Sustainable Lifestyle</span>
         </div>
-        <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white tracking-tight drop-shadow-[0_2px_8px_rgba(0,0,0,0.3)] leading-tight sm:leading-snug">
+        <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-slate-900 tracking-tight leading-tight sm:leading-snug">
           Developing a Taste for Clean Energy.
         </h2>
-        <p className="mt-2.5 sm:mt-3.5 text-xs sm:text-sm md:text-base text-white/95 max-w-xl md:max-w-2xl mx-auto font-normal drop-shadow-[0_1px_3px_rgba(0,0,0,0.25)] leading-relaxed">
+        <p className="mt-2.5 sm:mt-3.5 text-xs sm:text-sm md:text-base text-slate-600 max-w-xl md:max-w-2xl mx-auto leading-relaxed">
           Join thousands of homes, commercial enterprises, and farms transitioning to decentralized, affordable renewable power.
         </p>
+      </div>
+
+      <div className="relative mt-8 sm:mt-10 space-y-4 sm:space-y-5">
+        <LogoRow brands={ROW_ONE} direction="left" />
+        <LogoRow brands={ROW_TWO} direction="right" />
       </div>
     </section>
   );

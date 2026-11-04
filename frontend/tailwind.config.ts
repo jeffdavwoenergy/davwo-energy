@@ -61,8 +61,14 @@ const config: Config = {
         "accordion-up": { from: { height: "var(--radix-accordion-content-height)" }, to: { height: "0" } },
         "fade-up": { "0%": { opacity: "0", transform: "translateY(8px)" }, "100%": { opacity: "1", transform: "translateY(0)" } },
         "soft-pulse": { "0%, 100%": { opacity: "1" }, "50%": { opacity: "0.45" } },
+        // Logo rows: the track holds its items twice, so moving it by half
+        // its width loops seamlessly.
+        "marquee-left": { from: { transform: "translateX(0)" }, to: { transform: "translateX(-50%)" } },
+        "marquee-right": { from: { transform: "translateX(-50%)" }, to: { transform: "translateX(0)" } },
       },
       animation: {
+        "marquee-left": "marquee-left 40s linear infinite",
+        "marquee-right": "marquee-right 40s linear infinite",
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "fade-up": "fade-up 0.5s ease-out both",

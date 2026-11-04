@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Phone, MessageSquare, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { ProductCard } from "@/components/marketplace/ProductCard";
@@ -180,32 +180,91 @@ export function MarketplaceCatalogue({ basePath = "/marketplace", showHero = tru
   );
 }
 
-/** Horizontal, swipeable row of product cards with prev/next arrows — cards
- * sized to match the grid above (1 / 2 / 3 / 4 across). */
+/** Thumb geometry as fractions of the track: width = visible share of the
+ * row, left = how far along it's scrolled. */
+interface BarState { overflow: boolean; size: number; left: number }
+
+/** Horizontal, swipeable row of product cards — sized to match the grid
+ * above (1 / 2 / 3 / 4 across). Mobile keeps prev/next arrows; from sm up a
+ * slim, light scrollbar under the row shows position and can be dragged or
+ * clicked. Both only appear when the row has more cards than fit. */
 function DeviceCarousel({ title, products, children }: { title: string; products: MpProduct[]; children: (p: MpProduct) => React.ReactNode }) {
   const trackRef = useRef<HTMLDivElement>(null);
+  const barRef = useRef<HTMLDivElement>(null);
+  const drag = useRef<{ x: number; scroll: number } | null>(null);
+  const [bar, setBar] = useState<BarState>({ overflow: false, size: 1, left: 0 });
   const scroll = (dir: 1 | -1) => trackRef.current?.scrollBy({ left: dir * trackRef.current.clientWidth, behavior: "smooth" });
+
+  useEffect(() => {
+    const el = trackRef.current;
+    if (!el) return;
+    const update = () => {
+      const max = el.scrollWidth - el.clientWidth;
+      const size = el.scrollWidth > 0 ? el.clientWidth / el.scrollWidth : 1;
+      setBar({ overflow: max > 1, size, left: max > 0 ? (el.scrollLeft / max) * (1 - size) : 0 });
+    };
+    // ResizeObserver reports once on observe, so this also measures initially.
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    el.addEventListener("scroll", update, { passive: true });
+    return () => {
+      ro.disconnect();
+      el.removeEventListener("scroll", update);
+    };
+  }, [products.length]);
+
+  const onThumbDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    const el = trackRef.current;
+    if (!el) return;
+    e.stopPropagation();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    drag.current = { x: e.clientX, scroll: el.scrollLeft };
+    el.style.scrollSnapType = "none"; // snapping fights a dragged position
+  };
+  const onThumbMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const el = trackRef.current;
+    const barEl = barRef.current;
+    if (!drag.current || !el || !barEl) return;
+    const travel = barEl.clientWidth * (1 - bar.size);
+    if (travel <= 0) return;
+    el.scrollLeft = drag.current.scroll + ((e.clientX - drag.current.x) / travel) * (el.scrollWidth - el.clientWidth);
+  };
+  const onThumbUp = () => {
+    drag.current = null;
+    if (trackRef.current) trackRef.current.style.scrollSnapType = "";
+  };
+  /** Clicking the bar (not the thumb) jumps there. */
+  const onBarClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const el = trackRef.current;
+    const barEl = barRef.current;
+    if (!el || !barEl) return;
+    const rect = barEl.getBoundingClientRect();
+    const frac = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width - bar.size / 2) / (1 - bar.size || 1));
+    el.scrollTo({ left: frac * (el.scrollWidth - el.clientWidth), behavior: "smooth" });
+  };
 
   return (
     <section>
       <div className="flex items-center justify-between gap-3 mb-4">
         <h2 className="text-xl sm:text-2xl font-bold text-[#0c132b]">{title}</h2>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => scroll(-1)}
-            aria-label={`Previous ${title}`}
-            className="w-9 h-9 rounded-full border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 flex items-center justify-center transition-colors"
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => scroll(1)}
-            aria-label={`Next ${title}`}
-            className="w-9 h-9 rounded-full border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 flex items-center justify-center transition-colors"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
-        </div>
+        {bar.overflow && (
+          <div className="flex items-center gap-2 sm:hidden">
+            <button
+              onClick={() => scroll(-1)}
+              aria-label={`Previous ${title}`}
+              className="w-9 h-9 rounded-full border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 flex items-center justify-center transition-colors"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => scroll(1)}
+              aria-label={`Next ${title}`}
+              className="w-9 h-9 rounded-full border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 flex items-center justify-center transition-colors"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        )}
       </div>
       <div
         ref={trackRef}
@@ -220,6 +279,29 @@ function DeviceCarousel({ title, products, children }: { title: string; products
           </div>
         ))}
       </div>
+      {bar.overflow && (
+        <div
+          ref={barRef}
+          onClick={onBarClick}
+          role="scrollbar"
+          aria-orientation="horizontal"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Math.round((bar.left / (1 - bar.size || 1)) * 100)}
+          aria-label={`Scroll ${title}`}
+          className="hidden sm:block relative mt-3 h-1.5 rounded-full bg-slate-200/50 cursor-pointer"
+        >
+          <div
+            onPointerDown={onThumbDown}
+            onPointerMove={onThumbMove}
+            onPointerUp={onThumbUp}
+            onPointerCancel={onThumbUp}
+            onClick={(e) => e.stopPropagation()}
+            className="absolute inset-y-0 rounded-full bg-slate-400/40 hover:bg-slate-400/60 active:bg-slate-500/60 transition-colors cursor-grab active:cursor-grabbing touch-none"
+            style={{ width: `${bar.size * 100}%`, left: `${bar.left * 100}%` }}
+          />
+        </div>
+      )}
     </section>
   );
 }

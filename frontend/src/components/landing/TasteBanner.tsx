@@ -38,20 +38,20 @@ function LogoRow({ brands, direction }: { brands: Brand[]; direction: "left" | "
       >
         {/* Rendered twice for a seamless loop; the copy is hidden from screen readers. */}
         {[...brands, ...brands].map((b, i) => (
-          <li key={`${b.slug}-${i}`} aria-hidden={i >= brands.length} className="flex shrink-0 items-center gap-2.5 pr-10 sm:pr-14 text-slate-500 transition-colors hover:text-slate-900">
+          <li key={`${b.slug}-${i}`} aria-hidden={i >= brands.length} className="flex shrink-0 items-center gap-3 pr-12 sm:pr-16 text-slate-500 transition-colors hover:text-slate-900">
             {b.wordmark ? (
               <span
                 role="img"
                 aria-label={b.name}
                 // Wide wordmarks are short so their letters match the
                 // other names; LG's face + letters gets a taller box.
-                className={`bg-current ${b.wordmark < 3 ? "h-7 sm:h-8" : "h-4 sm:h-5"}`}
+                className={`bg-current ${b.wordmark < 3 ? "h-9 sm:h-11" : "h-5 sm:h-7"}`}
                 style={{ aspectRatio: b.wordmark, mask: maskOf(b.slug), WebkitMask: maskOf(b.slug) }}
               />
             ) : (
               <>
-                <span className="h-6 w-6 sm:h-7 sm:w-7 bg-current" style={{ mask: maskOf(b.slug), WebkitMask: maskOf(b.slug) }} aria-hidden />
-                <span className="text-sm sm:text-base font-semibold tracking-tight whitespace-nowrap">{b.name}</span>
+                <span className="h-8 w-8 sm:h-10 sm:w-10 bg-current" style={{ mask: maskOf(b.slug), WebkitMask: maskOf(b.slug) }} aria-hidden />
+                <span className="text-base sm:text-xl font-semibold tracking-tight whitespace-nowrap">{b.name}</span>
               </>
             )}
           </li>
@@ -77,7 +77,7 @@ export function TasteBanner() {
         </p>
       </div>
 
-      <div className="relative mt-8 sm:mt-10 space-y-4 sm:space-y-5">
+      <div className="relative mt-8 sm:mt-12 space-y-5 sm:space-y-7">
         <LogoRow brands={ROW_ONE} direction="left" />
         <LogoRow brands={ROW_TWO} direction="right" />
       </div>

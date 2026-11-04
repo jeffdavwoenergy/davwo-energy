@@ -3,16 +3,24 @@
 import { useEffect, useState } from "react";
 import { Link, useRouter } from "@/i18n/navigation";
 import { motion } from "framer-motion";
-import { Mail, Lock, Eye, EyeOff, ShieldCheck, ShieldAlert } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff, ShieldCheck, ShieldAlert, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import superAdminApi, { apiError, getSuperAdminToken, setSuperAdminToken } from "@/lib/superAdminApi";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import AuthImagePanel from "@/components/shared/AuthImagePanel";
 
+/** One-click local sign-in with the built-in development credential
+ * (src/lib/server/superadmin.ts). Next.js inlines NODE_ENV at build time, so
+ * in a production build this is `null` and the credential never ships. It
+ * would be refused there anyway: production only accepts SUPERADMIN_EMAIL /
+ * SUPERADMIN_PASSWORD from the environment. */
+const DEV_QUICK_LOGIN =
+  process.env.NODE_ENV !== "production" ? { email: "superadmin@davwo.com", password: "SuperAdmin@123" } : null;
+
 /** The super admin sign-in — same split layout as the ANI™ and Supplier
- * sign-ins, but no demo shortcuts and no sign-up: the only credential is
- * the one set in the deployment's environment. */
+ * sign-ins, but no sign-up and no demo shortcut in production: the only
+ * credential there is the one set in the deployment's environment. */
 export default function SuperAdminLoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -25,11 +33,10 @@ export default function SuperAdminLoginPage() {
     if (getSuperAdminToken()) router.replace("/superadmin/overview");
   }, [router]);
 
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const signIn = async (creds: { email: string; password: string }) => {
     setLoading(true);
     try {
-      const { data } = await superAdminApi.post<{ token: string }>("/superadmin/auth/login", { email, password });
+      const { data } = await superAdminApi.post<{ token: string }>("/superadmin/auth/login", creds);
       setSuperAdminToken(data.token);
       toast.success("Signed in to the Super Admin console");
       router.push("/superadmin/overview");
@@ -39,6 +46,19 @@ export default function SuperAdminLoginPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    signIn({ email, password });
+  };
+
+  /** Fills the form (so it's visible what was used) and signs straight in. */
+  const quickSignIn = () => {
+    if (!DEV_QUICK_LOGIN) return;
+    setEmail(DEV_QUICK_LOGIN.email);
+    setPassword(DEV_QUICK_LOGIN.password);
+    signIn(DEV_QUICK_LOGIN);
   };
 
   return (
@@ -123,6 +143,27 @@ export default function SuperAdminLoginPage() {
               <ShieldCheck size={18} /> {loading ? "Signing in…" : "Sign in to Super Admin"}
             </Button>
           </form>
+
+          {DEV_QUICK_LOGIN && (
+            <div className="mt-8">
+              <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Local development</div>
+              <Button
+                variant="outline"
+                onClick={quickSignIn}
+                disabled={loading}
+                className="mt-3 h-auto w-full justify-start gap-3 p-3 text-left font-normal hover:bg-amber-50/50 dark:hover:bg-amber-500/10 hover:border-amber-300 dark:hover:border-amber-500/40"
+              >
+                <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 bg-amber-100 text-amber-600 dark:bg-amber-500/15 dark:text-amber-300">
+                  <ShieldCheck size={18} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-semibold text-foreground">Super Admin · Davwo Energy</div>
+                  <div className="text-xs font-normal text-muted-foreground">{DEV_QUICK_LOGIN.email}. Only on local dev servers.</div>
+                </div>
+                <ArrowRight size={16} className="text-muted-foreground shrink-0" />
+              </Button>
+            </div>
+          )}
 
           <div className="mt-6 flex items-start gap-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3.5 py-3 text-xs text-amber-700 dark:text-amber-300">
             <ShieldAlert size={16} className="shrink-0 mt-0.5" />

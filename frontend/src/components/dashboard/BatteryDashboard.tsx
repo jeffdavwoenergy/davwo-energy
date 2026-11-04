@@ -102,7 +102,7 @@ export default function BatteryDashboard() {
             <KpiCard label="Power Now" value={`${data.netPowerKw > 0 ? "+" : ""}${data.netPowerKw.toFixed(1)}`} unit="kW" icon={Zap} tone="sky"
               caption={data.flow === "idle" ? "Idle" : data.flow === "charging" ? "Charging" : "Discharging"} />
             <KpiCard label="Saved Today" value={`£${data.savingsTodayGbp.toFixed(2)}`} icon={PoundSterling} tone="lavender" caption={`£${formatNumber(data.savingsMonthGbp)} this month`} />
-            <KpiCard label="Health" value={`${data.healthPct}%`} icon={HeartPulse} tone="peach" caption={`${formatNumber(data.totalCycles)} cycles`} />
+            <KpiCard label="Health" value={data.healthPct != null ? `${data.healthPct}%` : "Not reported"} icon={HeartPulse} tone="peach" caption={data.totalCycles != null ? `${formatNumber(data.totalCycles)} cycles` : data.capacityNote} />
             <KpiCard label="Backup Reserve" value={`${data.backupReservePct}%`} icon={ShieldCheck} tone="amber" caption={MODE_LABEL[data.operatingMode]} />
           </>
         )}
@@ -137,7 +137,7 @@ export default function BatteryDashboard() {
                   </div>
                   <div className="mt-1.5 flex justify-between text-[11px] text-muted-foreground">
                     <span>{u.socPct}% · {u.powerKw > 0 ? "+" : ""}{u.powerKw} kW</span>
-                    <span>{u.healthPct}% health · {formatNumber(u.cycles)} cycles</span>
+                    <span>{[u.healthPct != null ? `${u.healthPct}% health` : null, u.cycles != null ? `${formatNumber(u.cycles)} cycles` : null].filter(Boolean).join(" · ") || `${u.capacityKwh} kWh`}</span>
                   </div>
                 </div>
               ))}

@@ -134,7 +134,8 @@ export interface BatteryForecast {
   savingGbp: number;
   chargeWindow: string | null;
   dischargeWindow: string | null;
-  health: { nowPct: number; fadePctPerYear: number; yearsTo80: number | null; reaches80: string | null };
+  /** nowPct is null when the battery's provider doesn't report state of health. */
+  health: { nowPct: number | null; fadePctPerYear: number; yearsTo80: number | null; reaches80: string | null };
 }
 
 const windowOf = (slots: BatteryPlanSlot[], action: BatteryPlanSlot["action"]) => {
@@ -186,7 +187,7 @@ export function batteryForecast(m: BatteryMonitor, prices: PriceSlot[] | null, n
 
   const cyclesPerDay = clamp(m.throughputTodayKwh / Math.max(1, cap), 0.2, 2);
   const fade = r(1 + 1.2 * cyclesPerDay, 1);
-  const yearsTo80 = m.healthPct > 80 ? r((m.healthPct - 80) / fade, 1) : null;
+  const yearsTo80 = m.healthPct != null && m.healthPct > 80 ? r((m.healthPct - 80) / fade, 1) : null;
   return {
     source,
     slots,

@@ -81,7 +81,7 @@ export default function SolarDashboard() {
           <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
             <div>
               <div className="text-xs uppercase tracking-wider text-amber-300 font-semibold flex items-center gap-1.5"><Sun size={14} /> Arrays right now</div>
-              {data && <div className="text-sm text-slate-300 mt-0.5">Performance ratio {data.performanceRatioPct}% · brighter panels are generating harder</div>}
+              {data && <div className="text-sm text-slate-300 mt-0.5">{data.performanceRatioPct != null ? `Performance ratio ${data.performanceRatioPct}% · ` : ""}brighter panels are generating harder</div>}
             </div>
             <Link href="/monitoring" className="text-xs font-semibold text-emerald-300 hover:text-emerald-200 flex items-center gap-1">
               Inverter detail <ArrowRight size={13} />

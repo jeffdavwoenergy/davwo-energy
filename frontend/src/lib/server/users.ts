@@ -73,6 +73,17 @@ export const DEMO_USERS: DemoUser[] = [
     avatar_initials: "MR",
     password: DEMO_PASSWORD,
   },
+  {
+    id: "u-live-admin",
+    email: "live@davwo.com",
+    name: "Sam Okafor",
+    role: "admin",
+    orgId: "davwo-live",
+    company: "Davwo Live: Real Devices",
+    job_title: "Integrations Lead",
+    avatar_initials: "SO",
+    password: DEMO_PASSWORD,
+  },
 ];
 
 /** Per-instance fallback for invited users when no DB is configured — same
@@ -519,4 +530,89 @@ export async function changePassword(userId: string, currentPassword: string, ne
   if (!user || !(await checkPassword(user, currentPassword))) throw new WrongPasswordError();
   const prisma = getPrisma()!;
   await prisma.user.update({ where: { id: userId }, data: { passwordHash: await hashPassword(newPassword) } });
+}
+
+/* ── Super admin (platform-wide) ───────────────────────────────────────────
+ * The org-scoped functions above all take the acting admin's orgId and
+ * refuse to touch anything outside it. The super admin console manages
+ * every org at once, so these take no orgId — callers must have checked
+ * getSuperAdminAuth first. The last-admin guard still applies: an org with
+ * other members must always keep an admin. */
+
+export interface PlatformUser extends Omit<User, "orgName" | "preferences"> {
+  createdAt?: string;
+  /** A shared, seeded demo account (DEMO_USERS). */
+  demo: boolean;
+}
+
+function toPlatformUser(u: AnyUser, createdAt?: Date): PlatformUser {
+  return {
+    id: u.id, email: u.email, name: u.name, role: u.role, orgId: u.orgId,
+    company: u.company, job_title: u.job_title, avatar_initials: u.avatar_initials,
+    createdAt: createdAt?.toISOString(),
+    demo: DEMO_USERS.some((d) => d.id === u.id),
+  };
+}
+
+export async function listAllUsers(): Promise<PlatformUser[]> {
+  if (isDbConfigured()) {
+    await ensureSeeded();
+    const prisma = getPrisma()!;
+    const docs = await prisma.user.findMany({ orderBy: { createdAt: "desc" } });
+    return docs.map((d) => toPlatformUser(fromRow(d), d.createdAt));
+  }
+  return inMemoryUsers().map((u) => toPlatformUser(u));
+}
+
+async function countOrgMembers(orgId: string): Promise<number> {
+  if (isDbConfigured()) return getPrisma()!.user.count({ where: { orgId } });
+  return inMemoryUsers().filter((u) => u.orgId === orgId).length;
+}
+
+/** Same last-admin rule as assertMutable, minus the org/self/demo checks —
+ * except an org's only member can still be removed outright. */
+async function assertPlatformMutable(targetUserId: string, demotingFromAdmin: boolean, removing: boolean): Promise<AnyUser> {
+  const target = await findById(targetUserId);
+  if (!target) throw new UserNotFoundError();
+  if (demotingFromAdmin && target.role === "admin" && (await countAdmins(target.orgId)) <= 1) {
+    if (!(removing && (await countOrgMembers(target.orgId)) <= 1)) throw new LastAdminError();
+  }
+  return target;
+}
+
+export async function superAdminSetRole(targetUserId: string, role: Role): Promise<PlatformUser> {
+  const target = await assertPlatformMutable(targetUserId, role !== "admin", false);
+  if (!isDbConfigured()) {
+    target.role = role;
+    return toPlatformUser(target);
+  }
+  const doc = await getPrisma()!.user.update({ where: { id: targetUserId }, data: { role: role as UserRole } });
+  return toPlatformUser(fromRow(doc), doc.createdAt);
+}
+
+export async function superAdminRemoveUser(targetUserId: string): Promise<void> {
+  await assertPlatformMutable(targetUserId, true, true);
+  if (!isDbConfigured()) {
+    for (const list of [DEMO_USERS, invitedMemoryUsers] as AnyUser[][]) {
+      const idx = list.findIndex((u) => u.id === targetUserId);
+      if (idx >= 0) list.splice(idx, 1);
+    }
+    return;
+  }
+  await getPrisma()!.user.delete({ where: { id: targetUserId } });
+}
+
+/** Issues a new random temporary password and returns it for the super
+ * admin to pass on — the user then changes it from Settings. */
+export async function superAdminResetPassword(targetUserId: string): Promise<string> {
+  const target = await findById(targetUserId);
+  if (!target) throw new UserNotFoundError();
+  const tempPassword = randomBytes(9).toString("base64url");
+  if (!isDbConfigured()) {
+    if ("passwordHash" in target) target.passwordHash = await hashPassword(tempPassword);
+    else target.password = tempPassword;
+    return tempPassword;
+  }
+  await getPrisma()!.user.update({ where: { id: targetUserId }, data: { passwordHash: await hashPassword(tempPassword) } });
+  return tempPassword;
 }

@@ -6,8 +6,11 @@ export type { VehicleKind };
 
 export interface LatLng { lat: number; lng: number }
 /** "demo" = seeded illustrative data; "assets" = built from the org's own
- * registered devices of this type (telemetry still simulated per device). */
-export type MonitorSource = "demo" | "assets";
+ * registered devices of this type (telemetry still simulated per device);
+ * "live" = real telemetry from the org's device integrations. Fields typed
+ * `number | null` are null when a live provider doesn't report them —
+ * shown as "not reported", never filled with a made-up value. */
+export type MonitorSource = "demo" | "assets" | "live";
 
 export interface SolarInverter {
   id: string;
@@ -21,8 +24,8 @@ export interface SolarInverter {
   expectedKw: number;
   /** acPowerKw as a % of expectedKw — low means dirty, shaded or faulty. */
   performancePct: number;
-  dcVoltage: number;
-  temperatureC: number;
+  dcVoltage: number | null;
+  temperatureC: number | null;
   faultCode: string | null;
   strings: { id: string; powerW: number; voltage: number }[];
 }
@@ -45,13 +48,13 @@ export interface SolarMonitor {
   capacityKwp: number;
   energyTodayKwh: number;
   energyMonthKwh: number;
-  energyLifetimeKwh: number;
+  energyLifetimeKwh: number | null;
   selfConsumedKwh: number;
   exportedKwh: number;
   selfConsumedPct: number;
   exportedPct: number;
   specificYield: number;
-  performanceRatioPct: number;
+  performanceRatioPct: number | null;
   exportEarningsTodayGbp: number;
   exportEarningsMonthGbp: number;
   co2AvoidedKg: number;
@@ -70,10 +73,10 @@ export interface BatteryUnit {
   powerKw: number; // + charging, - discharging
   mode: BatteryMode;
   status: "online" | "warning" | "offline";
-  healthPct: number;
-  cycles: number;
+  healthPct: number | null;
+  cycles: number | null;
   capacityKwh: number;
-  temperatureC: number;
+  temperatureC: number | null;
 }
 export interface BatteryPoint {
   t: string;
@@ -83,6 +86,9 @@ export interface BatteryPoint {
 export interface BatteryMonitor {
   asOf: string;
   source: MonitorSource;
+  /** Live only: how totalCapacityKwh was obtained when the provider doesn't
+   * report it (e.g. "estimated from 30 days of charge vs SoC change"). */
+  capacityNote?: string;
   avgSocPct: number;
   netPowerKw: number;
   flow: "charging" | "discharging" | "idle";
@@ -91,8 +97,8 @@ export interface BatteryMonitor {
   gridStatus: "connected" | "islanded";
   usableCapacityKwh: number;
   totalCapacityKwh: number;
-  healthPct: number;
-  totalCycles: number;
+  healthPct: number | null;
+  totalCycles: number | null;
   throughputTodayKwh: number;
   savingsTodayGbp: number;
   savingsMonthGbp: number;

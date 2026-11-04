@@ -5,8 +5,9 @@ import useSWR from "swr";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import {
   Boxes, Plug, Gauge, Zap, Plus, MapPin, Upload, FileUp, TrendingUp, Sun, BatteryCharging, Truck,
-  ShieldCheck, Layers, PenLine, Link2, Keyboard, ArrowLeft, type LucideIcon,
+  ShieldCheck, Layers, PenLine, Link2, Keyboard, ArrowLeft, Radio, type LucideIcon,
 } from "lucide-react";
+import ConnectPlatformDialog from "@/components/integrations/ConnectPlatformDialog";
 import { toast } from "sonner";
 import { fetcher } from "@/lib/swr";
 import api from "@/lib/api";
@@ -47,6 +48,9 @@ interface Asset {
   installed_at?: string;
   product_id?: string;
   specs?: AssetSpecs;
+  /** Set on devices discovered through a connected platform. */
+  external?: { source: string; id: string };
+  telemetry?: Record<string, string | number | boolean | null>;
 }
 
 interface CatalogueProduct {
@@ -121,10 +125,10 @@ function SpecFields({ type, values, onChange }: { type: AssetType; values: Recor
 /** Two-step add: pick the device type (and how its data will arrive), then
  * fill in the fields that matter for that type. */
 function AddDeviceDialog({
-  open, onOpenChange, onCreated, initialType, onImportCsv,
+  open, onOpenChange, onCreated, initialType, onImportCsv, onConnect,
 }: {
   open: boolean; onOpenChange: (v: boolean) => void; onCreated: () => void;
-  initialType: AssetType; onImportCsv: () => void;
+  initialType: AssetType; onImportCsv: () => void; onConnect: () => void;
 }) {
   const [step, setStep] = useState<1 | 2>(1);
   const [type, setType] = useState<AssetType>(initialType);
@@ -221,16 +225,21 @@ function AddDeviceDialog({
                     <span className="block text-[11px] text-muted-foreground">{type === "Vehicle" ? "Not available for vehicles yet — add them one at a time" : "Bring in many at once from a spreadsheet"}</span>
                   </span>
                 </button>
-                <div className="w-full flex items-center gap-3 rounded-xl border border-dashed border-border p-3 opacity-70">
-                  <Link2 size={18} className="text-muted-foreground shrink-0" />
+                <button type="button" disabled={type === "Vehicle"} onClick={() => { close(false); onConnect(); }}
+                  className="w-full flex items-center gap-3 rounded-xl border border-border p-3 text-left hover:bg-accent disabled:opacity-50 disabled:hover:bg-transparent">
+                  <Link2 size={18} className="text-emerald-600 shrink-0" />
                   <span className="flex-1">
                     <span className="block text-sm font-semibold text-foreground">Connect a data provider</span>
                     <span className="block text-[11px] text-muted-foreground">
-                      {type === "Vehicle" ? "Vehicle telematics" : type === "Solar" ? "Inverter cloud" : type === "Battery" ? "Battery management system" : "OCPP back office"} — live readings, automatically
+                      {type === "Vehicle"
+                        ? "Vehicle telematics (Geotab, Tesla) is assessed and next on the roadmap"
+                        : "Victron VRM is live: real readings, automatically. SolarEdge, Enphase and OCPP are next"}
                     </span>
                   </span>
-                  <StatusPill tone="neutral" dot={false}>Coming soon</StatusPill>
-                </div>
+                  {type === "Vehicle"
+                    ? <StatusPill tone="neutral" dot={false}>Coming soon</StatusPill>
+                    : <StatusPill tone="success">Live</StatusPill>}
+                </button>
               </div>
             </div>
           </div>
@@ -698,6 +707,11 @@ export default function AssetsPage() {
   const [importOpen, setImportOpen] = useState(false);
   const [importReadingsOpen, setImportReadingsOpen] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
+  // ?connect=1 (a dashboard's "Connect a platform" link) opens it directly —
+  // same lazy-initialiser pattern as FleetDashboard's ?vehicle=.
+  const [connectOpen, setConnectOpen] = useState(() =>
+    typeof window !== "undefined" && new URLSearchParams(window.location.search).get("connect") === "1",
+  );
 
   const tab = showAll ? null : DEVICE_ASSET_TYPE[device];
   const tabMeta = tab ? TAB_FOR_TYPE[tab] : null;
@@ -708,6 +722,7 @@ export default function AssetsPage() {
   const specSum = (k: string) => assets.reduce((s, a) => s + (Number(a.specs?.[k]) || 0), 0);
   const cols = columnsFor(tab);
   const mine = assets.filter((a) => a.source === "user").length;
+  const integrated = all.some((a) => a.external);
 
   const extraKpi = (): { label: string; value: React.ReactNode; unit?: string; icon: LucideIcon } => {
     switch (tab) {
@@ -732,6 +747,9 @@ export default function AssetsPage() {
             </Button>
             <Button variant="outline" onClick={() => setImportReadingsOpen(true)} className="gap-2">
               <TrendingUp size={16} /> Import Readings
+            </Button>
+            <Button variant="outline" onClick={() => setConnectOpen(true)} className="gap-2">
+              <Link2 size={16} /> Connect platform
             </Button>
             <Button onClick={() => setAddOpen(true)} className="gap-2">
               <Plus size={16} /> {tab === "Vehicle" ? "Add vehicle" : "Add device"}
@@ -781,7 +799,11 @@ export default function AssetsPage() {
           <Truck size={20} className="text-emerald-600 shrink-0" />
           <div className="flex-1 min-w-[220px] text-sm">
             <div className="font-semibold text-emerald-900">No vehicles registered yet</div>
-            <div className="text-emerald-800/80">Your Fleet dashboard is showing demo vehicles. Add your own and they&apos;ll replace the demo fleet there and on the map.</div>
+            <div className="text-emerald-800/80">
+              {integrated
+                ? "This account shows only real, connected devices, so the Fleet dashboard stays empty until vehicles are added or a telematics platform is connected."
+                : "Your Fleet dashboard is showing demo vehicles. Add your own and they'll replace the demo fleet there and on the map."}
+            </div>
           </div>
           <Button onClick={() => setAddOpen(true)} className="gap-2"><Plus size={16} /> Add vehicle</Button>
         </div>
@@ -818,7 +840,15 @@ export default function AssetsPage() {
                   <TableCell className="px-5 py-3 font-medium text-foreground">
                     {a.name}
                     {a.source === "preview" && <span className="ml-1.5 text-[10px] text-muted-foreground font-normal">(preview)</span>}
-                    {a.source === "user" && <span className="ml-1.5 text-[10px] text-emerald-600 font-normal">(added)</span>}
+                    {a.source === "user" && !a.external && <span className="ml-1.5 text-[10px] text-emerald-600 font-normal">(added)</span>}
+                    {a.external && (
+                      <span className="ml-1.5 inline-flex items-center gap-1 text-[10px] text-emerald-600 font-semibold align-middle" title={`Live from ${a.external.source}`}>
+                        <Radio size={10} /> live
+                      </span>
+                    )}
+                    {typeof a.telemetry?.statusText === "string" && (
+                      <div className={`text-[11px] font-normal ${a.status === "down" ? "text-red-600" : "text-muted-foreground"}`}>{a.telemetry.statusText}</div>
+                    )}
                   </TableCell>
                   {cols.map((c) => (
                     <TableCell key={c.head} className={`px-5 py-3 text-foreground/80 ${c.align === "right" ? "text-right" : ""}`}>{c.cell(a)}</TableCell>
@@ -834,8 +864,9 @@ export default function AssetsPage() {
       <AddDeviceDialog
         key={addOpen ? `open-${tab ?? "all"}` : "closed"}
         open={addOpen} onOpenChange={setAddOpen} onCreated={() => mutate()}
-        initialType={tab ?? "EV Charger"} onImportCsv={() => setImportOpen(true)}
+        initialType={tab ?? "EV Charger"} onImportCsv={() => setImportOpen(true)} onConnect={() => setConnectOpen(true)}
       />
+      <ConnectPlatformDialog open={connectOpen} onOpenChange={setConnectOpen} onChanged={() => mutate()} />
       <CsvImportDialog
         open={importOpen} onOpenChange={setImportOpen} onImported={() => mutate()}
         title="Import assets from CSV" endpoint="/assets/import" template={ASSETS_CSV_TEMPLATE}

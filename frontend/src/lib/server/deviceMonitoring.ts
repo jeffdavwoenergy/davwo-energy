@@ -8,7 +8,9 @@
 // registrations come from the register, and each device's telemetry is
 // simulated from a seed derived from its asset id, so it stays stable.
 
-import { currentSeed } from "@/lib/server/context";
+import { currentSeed, currentOrg } from "@/lib/server/context";
+import { liveSnapshot, type LiveDevice } from "@/lib/server/integrations/sync";
+import { liveSolarMonitor, liveBatteryMonitor } from "@/lib/server/integrations/liveDevices";
 import type { UserAsset } from "@/lib/server/assetsStore";
 import { vehicleKindOf } from "@/lib/assetSpecs";
 import type {
@@ -88,7 +90,16 @@ const near = (p: LatLng, rng: () => number, km = 0.25) => offset(p, rng() * km, 
 // ---------------------------------------------------------------- Solar ----
 interface SolarArraySpec { name: string; site: string; capacityKwp: number; salt: number }
 
+/** A live org's integrated devices of one type (null outside a live org) —
+ * live orgs always get real telemetry, even when that's "no devices". */
+function liveDevicesOf(type: UserAsset["type"]): LiveDevice[] | null {
+  const snap = liveSnapshot(currentOrg());
+  return snap ? snap.devices.filter((d) => d.type === type) : null;
+}
+
 export function solarMonitoring(assets: UserAsset[] = []): SolarMonitor {
+  const integrated = liveDevicesOf("Solar");
+  if (integrated) return liveSolarMonitor(integrated);
   const base = stable(0x501a2);
   const live = livey(0x501a2);
   const fromAssets = assets.length > 0;
@@ -199,6 +210,8 @@ export function solarMonitoring(assets: UserAsset[] = []): SolarMonitor {
 interface BatterySpec { name: string; site: string; capacityKwh: number; powerKw: number; salt: number }
 
 export function batteryMonitoring(assets: UserAsset[] = []): BatteryMonitor {
+  const integrated = liveDevicesOf("Battery");
+  if (integrated) return liveBatteryMonitor(integrated);
   const base = stable(0xba77e);
   const live = livey(0xba77e);
   const fromAssets = assets.length > 0;
@@ -571,6 +584,15 @@ function buildVehicle(i: number, seed: VehicleSeed, driverPool: number): FleetVe
 }
 
 export function fleetMonitoring(assets: UserAsset[] = []): FleetMonitor {
+  // Live orgs have no vehicle integration yet (Geotab/Tesla are next) — an
+  // empty fleet, not demo vans presented as theirs.
+  if (liveDevicesOf("Vehicle") && !assets.length) {
+    return {
+      asOf: nowIso(), source: "live", depots: [], faultCounts: { critical: 0, warning: 0, info: 0 },
+      totalVehicles: 0, readyCount: 0, pluggedInCount: 0, chargingCount: 0, avgSocPct: 0,
+      avgEfficiencyMiPerKwh: 0, avgCostPerMileGbp: 0, fleetHealthPct: 0, vehicles: [], reimbursements: [],
+    };
+  }
   const base = stable(0xf1ee7);
   const fromAssets = assets.length > 0;
   const driverPool = 2 + Math.floor(base() * 4); // 2–5 drivers

@@ -410,3 +410,11 @@ export async function decideLead(orgId: string, leadId: string, decision: "accep
   const updated = await prisma.vendorLead.findUnique({ where: { id: leadId } });
   return mapLeadRow(updated!);
 }
+
+/** Every enquiry on the platform, newest first — the super admin console's
+ * marketplace oversight view. Names are resolved by the caller. */
+export async function listAllLeads(): Promise<Lead[]> {
+  const prisma = getPrisma();
+  if (!prisma) return [...memoryLeads].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  return (await prisma.vendorLead.findMany({ orderBy: { createdAt: "desc" } })).map(mapLeadRow);
+}

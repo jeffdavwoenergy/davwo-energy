@@ -1,7 +1,9 @@
 // ANI assistant: turns a natural-language question into render-blocks built from
 // REAL data. Capability selection is deterministic (keyword routing) so it works
-// fully without an LLM; if OPENAI_API_KEY is set, the LLM adds a natural narrative
-// over the same verified blocks (it never supplies the numbers).
+// fully without an LLM. If OPENAI_API_KEY is set, the LLM is given the exact
+// figures behind those blocks (plus, for orgs with device integrations, the live
+// state of every real device) and writes the analysis and recommendation —
+// grounded in those figures only; it never supplies numbers of its own.
 
 import type { AssistantAnswer, Block, ChartPoint } from "./blocks";
 import {
@@ -17,6 +19,7 @@ import {
 } from "@/lib/server/providers";
 import { fetchCarbonIntensity, fetchOctopusAgile } from "@/lib/data/regions/uk";
 import { currentOrg } from "@/lib/server/context";
+import { liveSnapshot } from "@/lib/server/integrations/sync";
 import { isLLMConfigured, callLLM, callLLMStream } from "@/lib/server/llm";
 import { DEVICE_CAPABILITIES, DEVICE_DEFAULT, DEVICE_CONTEXT, type DeviceId } from "./deviceCapabilities";
 
@@ -221,6 +224,47 @@ const CAPABILITIES: Capability[] = [
     },
   },
   {
+    id: "live_devices",
+    label: "real device status",
+    keywords: ["real", "live device", "devices", "victron", "integrat", "connected", "sites", "fault", "error", "soc", "state of charge", "which charger", "broken"],
+    build: async () => {
+      const snap = liveSnapshot(currentOrg());
+      if (!snap) {
+        return [{ type: "text", text: "No device platform is connected to this account yet. Connect one from Assets → Connect a platform to see real telemetry here." }];
+      }
+      const faulty = snap.devices.filter((d) => d.status !== "healthy");
+      const rows = snap.devices.map((d) => [
+        d.name,
+        d.type,
+        d.status === "healthy" ? "OK" : d.status,
+        String(d.telemetry.statusText ?? d.telemetry.state ?? "—"),
+        d.type === "Battery" ? `${d.telemetry.socPct ?? "—"}%` : "—",
+        `${d.currentLoadKw} kW`,
+      ]);
+      const blocks: Block[] = [
+        { type: "kpis", items: [
+          { label: "Real devices", value: snap.devices.length, live: true },
+          { label: "Need attention", value: faulty.length, live: true },
+          { label: "Sites", value: new Set(snap.devices.map((d) => d.site)).size },
+          { label: "Synced", value: new Date(snap.at).toISOString().slice(11, 16) + " UTC", live: snap.origin === "provider" },
+        ] },
+        { type: "table", title: "Integrated devices (live)", columns: ["Device", "Type", "Health", "Reported state", "SoC", "Power"], rows },
+      ];
+      for (const d of faulty) {
+        blocks.push({
+          type: "insight",
+          severity: "high",
+          title: `${d.name}: ${d.telemetry.statusText ?? "fault"}`,
+          detail: `Reported by the device itself (${d.manufacturer} ${d.model}) at ${d.site}.`,
+          recommendation: d.type === "EV Charger"
+            ? "Take the charger out of service and have a technician check the cable, connector and control-pilot circuit before re-enabling it."
+            : "Inspect the unit on site; it is reporting an abnormal state.",
+        });
+      }
+      return blocks;
+    },
+  },
+  {
     id: "summary",
     label: "network overview",
     keywords: ["overview", "summary", "doing", "performance", "kpi", "headline", "report"],
@@ -263,7 +307,9 @@ function selectCapabilities(question: string, context?: string, device?: string)
   const q = question.toLowerCase();
   // With Solar/Battery/Fleet selected, its capabilities join the pool and win
   // ties against the generic EV/grid ones (half a keyword's worth of bias).
-  const pool: Capability[] = isDeviceId(device) ? [...CAPABILITIES, ...DEVICE_CAPABILITIES] : CAPABILITIES;
+  // The real-device capability only exists for orgs with integrations.
+  const base = liveSnapshot(currentOrg()) ? CAPABILITIES : CAPABILITIES.filter((c) => c.id !== "live_devices");
+  const pool: Capability[] = isDeviceId(device) ? [...base, ...DEVICE_CAPABILITIES] : base;
   const scored = pool
     .map((c) => {
       const hits = c.keywords.filter((k) => q.includes(k)).length;
@@ -298,13 +344,58 @@ function templateIntro(caps: Capability[]): string {
 }
 
 const NARRATE_SYSTEM_PROMPT =
-  "You are ANI™, an energy-infrastructure analyst — warm, direct and easy to talk to, not a rigid report generator. " +
-  "You are shown charts/tables built from live grid data, chosen specifically to answer what the user just asked — " +
-  "stay on that topic and don't volunteer unrelated data they didn't ask for. Write a natural, conversational 1-2 " +
-  "sentence lead-in that answers the question directly. NEVER invent specific numbers — the visuals carry the figures. No markdown headers.";
+  "You are ANI™, an energy-infrastructure analyst for an operator of EV chargers, batteries, solar and fleets — warm, " +
+  "direct and decisive, not a rigid report generator. You are given DATA: the exact figures behind the charts and " +
+  "tables shown under your reply, chosen to answer the user's question, and sometimes LIVE DEVICES: the current " +
+  "state of the org's real, integrated devices. Answer the question directly, explain what is driving the result, " +
+  "and when there is a decision to make, recommend a specific action and why. Rules: only use numbers that appear " +
+  "in DATA or LIVE DEVICES (you may round or compare them); never invent figures, devices or causes the data doesn't " +
+  "support; if the data can't answer something, say so plainly. Stay on the question. 2-5 short sentences, plain " +
+  "prose or a few bullets, **bold** at most twice, no headers.";
 
-const narratePrompt = (question: string, labels: string[]) =>
-  `User asked: "${question}". The dashboard is showing: ${labels.join(", ")}. Write the lead-in.`;
+/** Compact text rendering of the blocks' figures for the LLM — the same
+ * numbers the user sees, so the narration can reason over them. */
+export function digestBlocks(blocks: Block[], limit = 6000): string {
+  const out: string[] = [];
+  for (const b of blocks) {
+    if (b.type === "text") out.push(b.text);
+    else if (b.type === "kpis") out.push("KPIs: " + b.items.map((k) => `${k.label} = ${k.value}${k.unit ? " " + k.unit : ""}`).join("; "));
+    else if (b.type === "chart") {
+      const step = Math.ceil(b.data.length / 36);
+      const pts = step > 1 ? b.data.filter((_, i) => i % step === 0) : b.data;
+      out.push(`Chart "${b.title ?? ""}" (${b.unit ?? ""}): ` + pts.map((p) => `${p.label}=${p.value}${p.lower != null ? ` [${p.lower}–${p.upper}]` : ""}`).join(", "));
+    } else if (b.type === "table") {
+      out.push(`Table "${b.title ?? ""}": ${b.columns.join(" | ")}`);
+      for (const row of b.rows.slice(0, 20)) out.push("  " + row.join(" | "));
+      if (b.rows.length > 20) out.push(`  …and ${b.rows.length - 20} more rows`);
+    } else if (b.type === "insight") {
+      out.push(`Insight [${b.severity}] ${b.title}: ${b.detail}${b.recommendation ? ` → ${b.recommendation}` : ""}`);
+    }
+  }
+  const text = out.join("\n");
+  return text.length > limit ? text.slice(0, limit) + "\n…(truncated)" : text;
+}
+
+/** Live state of an integrated org's real devices — given to the LLM on
+ * every question, so it can connect what was asked to what's actually
+ * happening on site (e.g. "is the network OK?" while a charger is faulted). */
+function liveDevicesContext(): string {
+  const snap = liveSnapshot(currentOrg());
+  if (!snap || !snap.devices.length) return "";
+  const lines = snap.devices.slice(0, 40).map((d) => {
+    const t = d.telemetry;
+    const state = [t.statusText, t.state, t.socPct != null ? `SoC ${t.socPct}%` : null].filter(Boolean).join(", ");
+    return `- ${d.name} (${d.type}, ${d.model}): ${d.status}${state ? `; ${state}` : ""}; ${d.currentLoadKw} kW`;
+  });
+  const providers = [...new Set(snap.devices.map((d) => d.provider))].join(", ");
+  return `\n\nLIVE DEVICES (real telemetry via ${providers}, synced ${new Date(snap.at).toISOString()}):\n${lines.join("\n")}`;
+}
+
+const narratePrompt = (question: string, labels: string[], blocks: Block[]) =>
+  `User asked: "${question}"\n\nShowing: ${labels.join(", ")}\n\nDATA:\n${digestBlocks(blocks)}${liveDevicesContext()}\n\nWrite the reply.`;
+
+/** Reasoning models spend part of max_completion_tokens thinking — leave room. */
+const NARRATE_MAX_TOKENS = 1500;
 
 export async function answer(question: string, context?: string, device?: ChatDevice): Promise<AssistantAnswer> {
   const caps = selectCapabilities(question, context, device);
@@ -314,7 +405,7 @@ export async function answer(question: string, context?: string, device?: ChatDe
   let intro: string | null = null;
   let mode: AssistantAnswer["mode"] = "deterministic";
   if (isLLMConfigured()) {
-    intro = await callLLM(NARRATE_SYSTEM_PROMPT, narratePrompt(question, caps.map((c) => c.label)), 220);
+    intro = await callLLM(NARRATE_SYSTEM_PROMPT, narratePrompt(question, caps.map((c) => c.label), blocks), NARRATE_MAX_TOKENS);
     if (intro) mode = "live-llm";
   }
   if (!intro) intro = templateIntro(caps);
@@ -337,7 +428,7 @@ export async function streamAnswer(
   let intro: string | null = null;
   let mode: AssistantAnswer["mode"] = "deterministic";
   if (isLLMConfigured()) {
-    intro = await callLLMStream(NARRATE_SYSTEM_PROMPT, narratePrompt(question, caps.map((c) => c.label)), 220, onDelta);
+    intro = await callLLMStream(NARRATE_SYSTEM_PROMPT, narratePrompt(question, caps.map((c) => c.label), blocks), NARRATE_MAX_TOKENS, onDelta);
     if (intro) mode = "live-llm";
   }
   if (!intro) {

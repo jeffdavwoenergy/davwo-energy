@@ -22,8 +22,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 type Org = { id: string; name: string; slug: string; plan: string; region: string; market?: Market };
 
 const ROLES: Role[] = ["admin", "operator", "pilot"];
-const STATIC_TENANT_IDS = new Set(["davwo", "pilot-mcr", "growth-leeds", "acme"]);
-const DEMO_SEED_USER_IDS = new Set(["u-admin", "u-operator", "u-pilot", "u-acme-admin"]);
+const STATIC_TENANT_IDS = new Set(["davwo", "pilot-mcr", "growth-leeds", "acme", "davwo-live"]);
+const DEMO_SEED_USER_IDS = new Set(["u-admin", "u-operator", "u-pilot", "u-acme-admin", "u-live-admin"]);
 
 function TeamPanel({ selfId }: { selfId?: string }) {
   const { data: users, mutate } = useSWR<User[]>("/users", fetcher);

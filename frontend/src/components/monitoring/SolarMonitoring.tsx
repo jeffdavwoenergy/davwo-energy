@@ -75,12 +75,12 @@ export function SolarMonitoring() {
             <Skeleton className="h-[260px]" />
           ) : (
             <div className="space-y-3">
-              <Metric label="Performance ratio" value={`${data.performanceRatioPct}%`} hint="vs clear-sky expected" tone={data.performanceRatioPct >= 85 ? "success" : "warning"} />
+              <Metric label="Performance ratio" value={data.performanceRatioPct != null ? `${data.performanceRatioPct}%` : "Not reported"} hint={data.source === "live" ? "yesterday vs 30-day daily average" : "vs clear-sky expected"} tone={data.performanceRatioPct == null || data.performanceRatioPct >= 85 ? "success" : "warning"} />
               <Row label="Specific yield" value={`${data.specificYield} kWh/kWp`} />
               <Row label="Exported today" value={`${formatNumber(data.exportedKwh)} kWh (${data.exportedPct}%)`} />
               <Row label="Self-consumed" value={`${formatNumber(data.selfConsumedKwh)} kWh (${data.selfConsumedPct}%)`} />
               <Row label="Energy this month" value={`${formatNumber(data.energyMonthKwh)} kWh`} />
-              <Row label="Lifetime energy" value={`${formatNumber(Math.round(data.energyLifetimeKwh / 1000))} MWh`} />
+              <Row label="Lifetime energy" value={data.energyLifetimeKwh != null ? `${formatNumber(Math.round(data.energyLifetimeKwh / 1000))} MWh` : "Not reported"} />
               <div className="flex items-center justify-between pt-2 border-t border-border">
                 <span className="text-sm text-muted-foreground flex items-center gap-1.5"><Leaf size={14} className="text-emerald-600" /> CO₂ avoided today</span>
                 <span className="text-sm font-semibold text-emerald-600">{formatNumber(data.co2AvoidedKg)} kg</span>
@@ -107,8 +107,8 @@ export function SolarMonitoring() {
                     <span className="text-sm font-semibold text-foreground shrink-0">{formatNumber(inv.acPowerKw)} kW</span>
                   </div>
                   <div className="mt-1.5 flex items-center gap-4 text-[11px] text-muted-foreground">
-                    <span>DC {inv.dcVoltage} V</span>
-                    <span>{inv.temperatureC}°C</span>
+                    {inv.dcVoltage != null && <span>DC {inv.dcVoltage} V</span>}
+                    {inv.temperatureC != null && <span>{inv.temperatureC}°C</span>}
                     <span>{inv.strings.length} string{inv.strings.length > 1 ? "s" : ""}</span>
                     {inv.faultCode && <span className="text-amber-600 font-medium">{inv.faultCode}</span>}
                   </div>

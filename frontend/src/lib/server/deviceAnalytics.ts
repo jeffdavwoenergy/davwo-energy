@@ -199,7 +199,8 @@ export function batteryAnalytics(m: BatteryMonitor, period: AnalyticsPeriod, now
       { source: "Storing solar", gbp: r(totalSavings * 0.3, 2) },
       { source: "Avoiding peak prices", gbp: r(totalSavings * 0.15, 2) },
     ],
-    health: Array.from({ length: 12 }, (_, i) => ({ month: monthLabel(11 - i), pct: r(Math.min(100, m.healthPct + fadePerMonth * (11 - i)), 1) })),
+    // No health trend when the provider doesn't report state of health.
+    health: m.healthPct == null ? [] : Array.from({ length: 12 }, (_, i) => ({ month: monthLabel(11 - i), pct: r(Math.min(100, m.healthPct! + fadePerMonth * (11 - i)), 1) })),
     modeTime: [
       { mode: "Self-powered", pct: modeShare[0] },
       { mode: "Time-based", pct: modeShare[1] },

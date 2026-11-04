@@ -1,4 +1,4 @@
-import { verifyToken, verifySupplierToken, type TokenClaims, type SupplierTokenClaims } from "@/lib/server/jwt";
+import { verifyToken, verifySupplierToken, verifySuperAdminToken, type TokenClaims, type SupplierTokenClaims, type SuperAdminTokenClaims } from "@/lib/server/jwt";
 import { PLATFORM_ORG_ID } from "@/lib/server/tenants";
 
 /** Extract + verify the bearer token from a request. Returns null if absent/invalid. */
@@ -34,6 +34,18 @@ export async function getSupplierAuth(req: Request): Promise<SupplierTokenClaims
   if (!token) return null;
   try {
     return await verifySupplierToken(token);
+  } catch {
+    return null;
+  }
+}
+
+/** Same shape again for the super admin console session. */
+export async function getSuperAdminAuth(req: Request): Promise<SuperAdminTokenClaims | null> {
+  const header = req.headers.get("authorization") || "";
+  const token = header.startsWith("Bearer ") ? header.slice(7) : null;
+  if (!token) return null;
+  try {
+    return await verifySuperAdminToken(token);
   } catch {
     return null;
   }

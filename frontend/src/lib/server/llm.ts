@@ -25,6 +25,44 @@ export function isLLMConfigured(): boolean {
   return Boolean(process.env.OPENAI_API_KEY);
 }
 
+/** Most recent failure, for /api/health — callers still degrade silently to
+ * their templates, but a misconfigured key/model is now diagnosable instead
+ * of looking like "ANI just isn't very smart". Never includes the key. */
+let lastError: { at: string; detail: string } | null = null;
+
+export function llmStatus() {
+  return {
+    configured: isLLMConfigured(),
+    model: process.env.OPENAI_MODEL || DEFAULT_MODEL,
+    base: LLM_BASE === "https://api.openai.com" ? "openai" : "custom",
+    lastError,
+  };
+}
+
+function fail(detail: string): null {
+  lastError = { at: new Date().toISOString(), detail: detail.slice(0, 300) };
+  console.error(`[llm] ${lastError.detail}`);
+  return null;
+}
+
+/** GPT-5-family models are reasoning models: max_completion_tokens covers
+ * hidden reasoning tokens too, so a tight budget can be spent entirely on
+ * reasoning and return empty content. OPENAI_REASONING_EFFORT (e.g. "low")
+ * is passed through when set, for models that accept it. */
+function requestBody(system: string, user: string, maxTokens: number, stream: boolean) {
+  const effort = (process.env.OPENAI_REASONING_EFFORT ?? "").trim();
+  return JSON.stringify({
+    model: process.env.OPENAI_MODEL || DEFAULT_MODEL,
+    max_completion_tokens: maxTokens,
+    ...(effort ? { reasoning_effort: effort } : {}),
+    ...(stream ? { stream: true } : {}),
+    messages: [
+      { role: "system", content: system },
+      { role: "user", content: user },
+    ],
+  });
+}
+
 /** One-shot completion. Returns null on any failure (missing key, HTTP error,
  * network error, empty response) — callers fall back to their own
  * deterministic template rather than surfacing an error. */
@@ -35,21 +73,15 @@ export async function callLLM(system: string, user: string, maxTokens: number): 
     const res = await fetch(CHAT_COMPLETIONS_URL, {
       method: "POST",
       headers: { Authorization: `Bearer ${key}`, "content-type": "application/json" },
-      body: JSON.stringify({
-        model: process.env.OPENAI_MODEL || DEFAULT_MODEL,
-        max_completion_tokens: maxTokens,
-        messages: [
-          { role: "system", content: system },
-          { role: "user", content: user },
-        ],
-      }),
+      body: requestBody(system, user, maxTokens, false),
     });
-    if (!res.ok) return null;
+    if (!res.ok) return fail(`HTTP ${res.status}: ${await res.text().catch(() => "")}`);
     const j = await res.json();
     const text = j?.choices?.[0]?.message?.content;
-    return typeof text === "string" && text.trim() ? text.trim() : null;
-  } catch {
-    return null;
+    if (typeof text === "string" && text.trim()) return text.trim();
+    return fail(`empty completion (finish_reason: ${j?.choices?.[0]?.finish_reason ?? "unknown"})`);
+  } catch (err) {
+    return fail(`request failed: ${(err as Error).message}`);
   }
 }
 
@@ -74,17 +106,9 @@ export async function callLLMStream(
     const res = await fetch(CHAT_COMPLETIONS_URL, {
       method: "POST",
       headers: { Authorization: `Bearer ${key}`, "content-type": "application/json" },
-      body: JSON.stringify({
-        model: process.env.OPENAI_MODEL || DEFAULT_MODEL,
-        max_completion_tokens: maxTokens,
-        stream: true,
-        messages: [
-          { role: "system", content: system },
-          { role: "user", content: user },
-        ],
-      }),
+      body: requestBody(system, user, maxTokens, true),
     });
-    if (!res.ok || !res.body) return null;
+    if (!res.ok || !res.body) return fail(`HTTP ${res.status}: ${await res.text().catch(() => "")}`);
 
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
@@ -112,8 +136,9 @@ export async function callLLMStream(
         }
       }
     }
-    return full.trim() || null;
-  } catch {
-    return full.trim() || null;
+    return full.trim() || fail("empty streamed completion");
+  } catch (err) {
+    if (!full.trim()) return fail(`stream failed: ${(err as Error).message}`);
+    return full.trim();
   }
 }

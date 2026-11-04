@@ -2,6 +2,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { NextResponse } from "next/server";
 import { getAuth } from "@/lib/server/auth";
 import { tenantSeed } from "@/lib/server/tenants";
+import { ensureLiveData } from "@/lib/server/integrations/sync";
 
 interface TenantCtx {
   seed: number;
@@ -45,6 +46,10 @@ export function currentOrg(): string {
 export async function withTenant<T>(req: Request, fn: () => Promise<T> | T): Promise<T> {
   const claims = await getAuth(req);
   if (!claims || typeof claims.org !== "string") throw new UnauthorizedError();
+  // Orgs with device integrations get a fresh real-data snapshot before the
+  // handler runs (no-op for demo orgs) — getNetwork() and the device
+  // monitors read it synchronously.
+  await ensureLiveData(claims.org);
   return als.run({ seed: tenantSeed(claims.org), orgId: claims.org }, async () => fn());
 }
 
@@ -59,12 +64,14 @@ export async function withMutateTenant<T>(req: Request, fn: () => Promise<T> | T
   const claims = await getAuth(req);
   if (!claims || typeof claims.org !== "string") throw new UnauthorizedError();
   if (claims.role === "pilot") throw new ForbiddenError();
+  await ensureLiveData(claims.org);
   return als.run({ seed: tenantSeed(claims.org), orgId: claims.org }, async () => fn());
 }
 
 /** Runs fn as the given org (its seed + id) without a request — for callers
  * that already resolved the org themselves (e.g. the email digest). */
-export function asTenant<T>(orgId: string, fn: () => Promise<T> | T): Promise<T> {
+export async function asTenant<T>(orgId: string, fn: () => Promise<T> | T): Promise<T> {
+  await ensureLiveData(orgId);
   return als.run({ seed: tenantSeed(orgId), orgId }, async () => fn());
 }
 

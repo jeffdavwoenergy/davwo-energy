@@ -288,3 +288,15 @@ export async function changeSupplierPassword(id: string, currentPassword: string
   const prisma = getPrisma()!;
   await prisma.supplier.update({ where: { id }, data: { passwordHash } });
 }
+
+/** Super admin: removes a supplier account. Its listings are removed by the
+ * caller (products.ts owns them), so this only touches the account itself. */
+export async function deleteSupplier(id: string): Promise<boolean> {
+  await ensureSeeded();
+  if (!isDbConfigured()) return memorySuppliers.delete(id);
+  const prisma = getPrisma()!;
+  const existing = await prisma.supplier.findUnique({ where: { id } });
+  if (!existing) return false;
+  await prisma.supplier.delete({ where: { id } });
+  return true;
+}

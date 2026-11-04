@@ -24,8 +24,35 @@ export interface UserAsset {
   product_id?: string;
   /** Type-specific fields (vehicle reg/battery, solar panel count, …) — see assetSpecs.ts. */
   specs?: AssetSpecs;
+  /** Set when the device was discovered through a device integration. */
+  external?: { source: string; id: string; connection_id?: string };
+  /** Latest live snapshot from the integration (SoC, status text, …). */
+  telemetry?: Telemetry;
+  last_seen_at?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export type Telemetry = Record<string, string | number | boolean | null>;
+
+/** A device as reported by an integration — the full desired state of its
+ * row, applied by upsertExternalAssets. */
+export interface ExternalAssetInput {
+  externalId: string;
+  type: AssetType;
+  name: string;
+  site: string;
+  capacityKw: number;
+  manufacturer?: string;
+  model?: string;
+  serialNumber?: string;
+  location: { lat: number; lng: number } | null;
+  status: AssetStatus;
+  currentLoadKw: number;
+  utilisationPct: number;
+  specs?: AssetSpecs;
+  telemetry: Telemetry;
+  lastSeenAt: string | null;
 }
 
 export interface NewAssetInput {
@@ -78,6 +105,8 @@ function fromRow(row: {
   locationLat: number | null; locationLng: number | null;
   manufacturer: string | null; model: string | null; serialNumber: string | null;
   installedAt: Date | null; productId: string | null; specs?: unknown; createdAt: Date; updatedAt: Date;
+  externalSource?: string | null; externalId?: string | null; connectionId?: string | null;
+  telemetry?: unknown; lastSeenAt?: Date | null;
 }): UserAsset {
   return {
     id: row.id,
@@ -96,6 +125,11 @@ function fromRow(row: {
     installed_at: row.installedAt ? row.installedAt.toISOString() : undefined,
     product_id: row.productId ?? undefined,
     specs: row.specs && typeof row.specs === "object" ? (row.specs as AssetSpecs) : undefined,
+    ...(row.externalSource && row.externalId
+      ? { external: { source: row.externalSource, id: row.externalId, connection_id: row.connectionId ?? undefined } }
+      : {}),
+    ...(row.telemetry && typeof row.telemetry === "object" ? { telemetry: row.telemetry as Telemetry } : {}),
+    ...(row.lastSeenAt ? { last_seen_at: row.lastSeenAt.toISOString() } : {}),
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -221,4 +255,78 @@ export async function removeUserAsset(orgId: string, id: string): Promise<boolea
   if (!existing || existing.orgId !== orgId) return false;
   await prisma.userAsset.delete({ where: { id } });
   return true;
+}
+
+/** Creates or refreshes an org's integration-discovered devices, keyed on
+ * (source, provider device id) so every sync updates the same rows. Fields
+ * a user can edit by hand (name, site, product link) are only set on create —
+ * a re-sync never overwrites the user's own renaming. Returns the stored
+ * assets in input order. */
+export async function upsertExternalAssets(
+  orgId: string, source: string, connectionId: string, devices: ExternalAssetInput[],
+): Promise<UserAsset[]> {
+  const now = new Date().toISOString();
+  if (!isDbConfigured()) {
+    const list = memoryAssets.get(orgId) ?? [];
+    const out: UserAsset[] = [];
+    for (const d of devices) {
+      let a = list.find((x) => x.external?.source === source && x.external.id === d.externalId);
+      if (!a) {
+        a = {
+          id: `ua-${randomUUID()}`, name: d.name, type: d.type, site: d.site, capacity_kw: d.capacityKw,
+          status: d.status, utilisation_pct: d.utilisationPct, current_load_kw: d.currentLoadKw,
+          location: d.location, source: "user", createdAt: now, updatedAt: now,
+        };
+        list.push(a);
+      }
+      Object.assign(a, {
+        type: d.type, capacity_kw: d.capacityKw, status: d.status, utilisation_pct: d.utilisationPct,
+        current_load_kw: d.currentLoadKw, location: d.location, manufacturer: d.manufacturer, model: d.model,
+        serial_number: d.serialNumber, specs: d.specs, telemetry: d.telemetry,
+        last_seen_at: d.lastSeenAt ?? undefined,
+        external: { source, id: d.externalId, connection_id: connectionId }, updatedAt: now,
+      });
+      out.push(a);
+    }
+    memoryAssets.set(orgId, list);
+    return out;
+  }
+  const prisma = getPrisma()!;
+  const out: UserAsset[] = [];
+  for (const d of devices) {
+    const live = {
+      type: TYPE_TO_DB[d.type], capacityKw: d.capacityKw, status: d.status,
+      utilisationPct: d.utilisationPct, currentLoadKw: d.currentLoadKw,
+      locationLat: d.location?.lat ?? null, locationLng: d.location?.lng ?? null,
+      manufacturer: d.manufacturer ?? null, model: d.model ?? null, serialNumber: d.serialNumber ?? null,
+      telemetry: d.telemetry, lastSeenAt: d.lastSeenAt ? new Date(d.lastSeenAt) : null, connectionId,
+      ...(d.specs ? { specs: d.specs } : {}),
+    };
+    const row = await prisma.userAsset.upsert({
+      where: { orgId_externalSource_externalId: { orgId, externalSource: source, externalId: d.externalId } },
+      create: { id: `ua-${randomUUID()}`, orgId, name: d.name, site: d.site, externalSource: source, externalId: d.externalId, ...live },
+      update: live,
+    });
+    out.push(fromRow(row));
+  }
+  return out;
+}
+
+/** Removes every asset a connection discovered (on disconnect). Their
+ * readings go too — they're the integration's data, not hand-entered. */
+export async function removeConnectionAssets(orgId: string, connectionId: string): Promise<string[]> {
+  if (!isDbConfigured()) {
+    const list = memoryAssets.get(orgId) ?? [];
+    const gone = list.filter((a) => a.external?.connection_id === connectionId).map((a) => a.id);
+    memoryAssets.set(orgId, list.filter((a) => a.external?.connection_id !== connectionId));
+    return gone;
+  }
+  const prisma = getPrisma()!;
+  const rows = await prisma.userAsset.findMany({ where: { orgId, connectionId }, select: { id: true } });
+  const ids = rows.map((r) => r.id);
+  if (ids.length) {
+    await prisma.assetReading.deleteMany({ where: { orgId, assetId: { in: ids } } });
+    await prisma.userAsset.deleteMany({ where: { orgId, connectionId } });
+  }
+  return ids;
 }

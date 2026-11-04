@@ -37,7 +37,7 @@ export default function BatteryForecast() {
             <KpiCard label="Charge" value={data.chargeWindow ?? "Not needed"} icon={ArrowDownToLine} tone="sky" caption={`${data.chargeKwh} kWh from the grid`} />
             <KpiCard label="Discharge" value={data.dischargeWindow ?? "Not worth it"} icon={ArrowUpFromLine} tone="lavender" caption={`${data.dischargeKwh} kWh to the site`} />
             <KpiCard label="Reaches 80% Health" value={data.health.reaches80 ?? "—"} icon={HeartPulse} tone="peach"
-              caption={data.health.yearsTo80 != null ? `~${data.health.yearsTo80} years at ${data.health.fadePctPerYear}%/yr` : "Already below 80%"} />
+              caption={data.health.nowPct == null ? "State of health not reported by this battery" : data.health.yearsTo80 != null ? `~${data.health.yearsTo80} years at ${data.health.fadePctPerYear}%/yr` : "Already below 80%"} />
           </>
         )}
       </div>

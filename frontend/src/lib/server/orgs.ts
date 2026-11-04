@@ -92,3 +92,18 @@ export async function updateOrg(id: string, updates: OrgUpdate): Promise<OrgReco
     createdAt: doc.createdAt.toISOString(),
   };
 }
+
+/** Every signed-up org — the super admin console's organisation list. */
+export async function listOrgs(): Promise<OrgRecord[]> {
+  if (!isDbConfigured()) return [...memoryOrgs.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const prisma = getPrisma()!;
+  const docs = await prisma.org.findMany({ orderBy: { createdAt: "desc" } });
+  return docs.map((doc) => ({
+    id: doc.id,
+    name: doc.name,
+    slug: doc.slug,
+    region: doc.region ?? undefined,
+    market: isMarket(doc.market) ? doc.market : "uk",
+    createdAt: doc.createdAt.toISOString(),
+  }));
+}

@@ -86,11 +86,50 @@ model UserAsset {
   /** Type-specific fields (vehicle reg/battery size, solar panel count, …),
    * validated by src/lib/assetSpecs.ts. */
   specs           Json?
+  /** Set for devices discovered through a device integration (see
+   * src/lib/server/integrations/) — null for manually registered assets.
+   * externalId is the provider's own stable device key, so a re-sync
+   * updates the same row instead of duplicating it. */
+  externalSource  String?
+  externalId      String?
+  connectionId    String?
+  /** Latest live snapshot from the provider (SoC, status text, voltage, …). */
+  telemetry       Json?
+  lastSeenAt      DateTime?
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
 
+  @@unique([orgId, externalSource, externalId])
   @@index([orgId])
   @@map("user_assets")
+}
+
+enum IntegrationStatus {
+  active
+  error
+  disabled
+}
+
+/** One org's connection to a device platform (Victron VRM, SolarEdge, …).
+ * Credentials are AES-256-GCM encrypted at rest with Davwo's own
+ * INTEGRATIONS_ENCRYPTION_KEY — never stored or logged in plain text, and
+ * never returned by the API. */
+model IntegrationConnection {
+  id          String            @id @default(uuid())
+  orgId       String
+  provider    String
+  label       String
+  credentials String?
+  status      IntegrationStatus @default(active)
+  lastSyncAt  DateTime?
+  lastError   String?
+  /** Provider-side identifiers discovered at connect time (VRM user id, …). */
+  metadata    Json?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@index([orgId])
+  @@map("integration_connections")
 }
 
 /** Real per-asset time-series data — distinct from src/lib/ani/dataGenerator.ts's

@@ -213,3 +213,35 @@ export async function listReadingsForOrg(orgId: string, fromMs: number, toMs: nu
     recorded_at: r.recordedAt.toISOString(),
   }));
 }
+
+/** Appends an integration's hourly history for one of the org's assets,
+ * skipping anything at or before the newest reading already stored — so a
+ * sync that re-fetches an overlapping window never duplicates rows. Values
+ * come from the provider, already non-negative; recorded_at is the hour start.
+ * Returns how many readings were written. */
+export async function appendSyncedReadings(
+  orgId: string, assetId: string, rows: { recordedAt: number; powerKw: number; energyKwh: number }[],
+): Promise<number> {
+  if (!rows.length) return 0;
+  if (!isDbConfigured()) {
+    const list = memoryReadings.get(assetId) ?? [];
+    const newest = list.reduce((m, r) => Math.max(m, new Date(r.recorded_at).getTime()), 0);
+    const fresh = rows.filter((r) => r.recordedAt > newest);
+    for (const r of fresh) {
+      list.push({ id: randomUUID(), assetId, power_kw: r.powerKw, energy_kwh: r.energyKwh, recorded_at: new Date(r.recordedAt).toISOString() });
+    }
+    memoryReadings.set(assetId, list);
+    return fresh.length;
+  }
+  const prisma = getPrisma()!;
+  const latest = await prisma.assetReading.findFirst({
+    where: { orgId, assetId }, orderBy: { recordedAt: "desc" }, select: { recordedAt: true },
+  });
+  const newest = latest?.recordedAt.getTime() ?? 0;
+  const fresh = rows.filter((r) => r.recordedAt > newest);
+  if (!fresh.length) return 0;
+  const { count } = await prisma.assetReading.createMany({
+    data: fresh.map((r) => ({ assetId, orgId, powerKw: r.powerKw, energyKwh: r.energyKwh, recordedAt: new Date(r.recordedAt) })),
+  });
+  return count;
+}

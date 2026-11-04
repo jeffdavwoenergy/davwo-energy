@@ -147,7 +147,7 @@ export const DEVICE_CAPABILITIES: DeviceCapability[] = [
             { label: "Charge", value: b.avgSocPct, unit: "%" },
             { label: "Power now", value: b.netPowerKw, unit: "kW" },
             { label: "Saved today", value: `£${b.savingsTodayGbp.toFixed(2)}` },
-            { label: "Health", value: b.healthPct, unit: "%" },
+            b.healthPct != null ? { label: "Health", value: b.healthPct, unit: "%" } : { label: "Health", value: "not reported" },
           ],
         },
         {

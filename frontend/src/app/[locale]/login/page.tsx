@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { Link, useRouter } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import { motion } from "framer-motion";
-import { Mail, Lock, Eye, EyeOff, LogIn, UserCog, Building2, ArrowRight } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff, LogIn, UserCog, Building2, ArrowRight, Radio } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
 import type { Role } from "@/lib/types";
@@ -15,10 +15,12 @@ import AuthImagePanel from "@/components/shared/AuthImagePanel";
 import { linkSessionsIfSameEmail } from "@/lib/portalSwitch";
 
 /** Seeded demo accounts (users.ts DEMO_USERS) offered as one-click sign-ins —
- * both admins, at different companies, each with Full membership. */
-const DEMO_ACCOUNTS: { account: string; role: Role; company: string; icon: typeof UserCog; tone: string }[] = [
+ * all admins, at different companies, each with Full membership. The live
+ * account's devices are real (Victron VRM public demo sites), not simulated. */
+const DEMO_ACCOUNTS: { account: string; role: Role; company: string; icon: typeof UserCog; tone: string; live?: boolean }[] = [
   { account: "u-admin", role: "admin", company: "Davwo Energy", icon: UserCog, tone: "bg-sky-100 text-sky-600 dark:bg-sky-500/15 dark:text-sky-300" },
   { account: "u-acme-admin", role: "admin", company: "Acme Corp", icon: Building2, tone: "bg-emerald-100 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300" },
+  { account: "u-live-admin", role: "admin", company: "Davwo Live: Real Devices", icon: Radio, tone: "bg-amber-100 text-amber-600 dark:bg-amber-500/15 dark:text-amber-300", live: true },
 ];
 
 function LoginInner() {
@@ -162,7 +164,7 @@ function LoginInner() {
             </div>
             <div className="mt-3 space-y-2">
               {DEMO_ACCOUNTS.map((demo) => {
-                const { account, role, company, icon: Icon, tone } = demo;
+                const { account, role, company, icon: Icon, tone, live } = demo;
                 return (
                 <Button
                   key={account}
@@ -176,7 +178,9 @@ function LoginInner() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-semibold text-foreground">{t(`roles.${role}.label`)} · {company}</div>
-                    <div className="text-xs font-normal text-muted-foreground">{t(`roles.${role}.description`)}</div>
+                    <div className="text-xs font-normal text-muted-foreground">
+                      {live ? "Real EV chargers, batteries and solar, streaming live from Victron VRM" : t(`roles.${role}.description`)}
+                    </div>
                   </div>
                   <ArrowRight size={16} className="text-muted-foreground shrink-0" />
                 </Button>

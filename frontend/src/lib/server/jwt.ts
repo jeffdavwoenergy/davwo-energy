@@ -77,3 +77,31 @@ export async function verifySupplierToken(token: string): Promise<SupplierTokenC
   if (payload.kind !== "supplier") throw new Error("Not a supplier token");
   return payload;
 }
+
+/**
+ * Super admin (platform operator console) tokens — a third, structurally
+ * distinct claims shape (kind: "superadmin", no org/role), so verifyToken
+ * and verifySupplierToken both reject it, and it can't be forged from either
+ * of theirs. Shorter-lived than the other sessions since it can manage
+ * every account on the platform.
+ */
+export interface SuperAdminTokenClaims extends JWTPayload {
+  sub: string;
+  email: string;
+  kind: "superadmin";
+}
+
+export async function signSuperAdminToken(claims: { sub: string; email: string }) {
+  return new SignJWT({ email: claims.email, kind: "superadmin" })
+    .setProtectedHeader({ alg: ALG })
+    .setSubject(claims.sub)
+    .setIssuedAt()
+    .setExpirationTime("4h")
+    .sign(getSecret());
+}
+
+export async function verifySuperAdminToken(token: string): Promise<SuperAdminTokenClaims> {
+  const { payload } = await jwtVerify<SuperAdminTokenClaims>(token, getSecret());
+  if (payload.kind !== "superadmin") throw new Error("Not a super admin token");
+  return payload;
+}

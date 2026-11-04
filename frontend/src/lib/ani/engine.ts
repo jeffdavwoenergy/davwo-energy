@@ -18,6 +18,31 @@ export type Severity = "high" | "medium" | "low" | "info";
 const SEVERITY_RANK: Record<Severity, number> = { high: 3, medium: 2, low: 1, info: 0 };
 const PEAK_HOURS = [17, 18, 19];
 
+/** Newest reading's timestamp — or the current hour for a network with no
+ * readings yet (a live org whose integrations report no EV chargers), so
+ * callers never see -Infinity / an invalid Date. reduce, not spread: a large
+ * real network can exceed the engine's argument-count limit. */
+function latestTsOf(ds: Network): number {
+  if (!ds.readings.length) return Math.floor(Date.now() / 3_600_000) * 3_600_000;
+  return ds.readings.reduce((m, r) => (r.ts > m ? r.ts : m), -Infinity);
+}
+
+/** Mean energy by hour of day across the network's own readings — the real
+ * demand shape. Falls back to the modelled HOUR_PROFILE when the data has no
+ * signal (no readings, or all zero), so peak/trough hours always come from
+ * the data when there is any. */
+export function hourProfile(ds: Network): number[] {
+  const tot = new Array(24).fill(0);
+  const cnt = new Array(24).fill(0);
+  for (const r of ds.readings) {
+    if (!r.online) continue;
+    tot[r.hour] += r.energyKwh;
+    cnt[r.hour] += 1;
+  }
+  const prof = tot.map((t, h) => (cnt[h] ? t / cnt[h] : 0));
+  return prof.some((v) => v > 0) ? prof : HOUR_PROFILE;
+}
+
 function groupBy<T>(rows: T[], keyFn: (r: T) => string): Map<string, T[]> {
   const m = new Map<string, T[]>();
   for (const r of rows) {
@@ -45,7 +70,7 @@ export interface MonitorResult {
 }
 
 export function monitor(ds: Network): MonitorResult {
-  const latestTs = Math.max(...ds.readings.map((r) => r.ts));
+  const latestTs = latestTsOf(ds);
   const latest = ds.readings.filter((r) => r.ts === latestTs);
   const byStation = groupBy(latest, (r) => r.stationId);
 
@@ -83,7 +108,7 @@ export interface Insight {
 
 export function analyse(ds: Network, opts: { windowDays?: number } = {}): Insight[] {
   const windowDays = opts.windowDays ?? 14;
-  const latestTs = Math.max(...ds.readings.map((r) => r.ts));
+  const latestTs = latestTsOf(ds);
   const windowStart = latestTs - windowDays * 24 * 3_600_000;
   const win = ds.readings.filter((r) => r.ts >= windowStart);
   const insights: Insight[] = [];
@@ -236,7 +261,8 @@ export function optimise(ds: Network, fc: Forecast) {
   if (!st || !fc.points.length) return null;
 
   const peakDay = fc.points.reduce((a, b) => (b.predicted > a.predicted ? b : a));
-  const peakHourShare = Math.max(...HOUR_PROFILE) / sum(HOUR_PROFILE);
+  const profile = hourProfile(ds);
+  const peakHourShare = Math.max(...profile) / sum(profile);
   const estPeakKw = peakDay.predicted * peakHourShare;
   const headroom = 1 - estPeakKw / st.capacityKw;
   const strained = headroom < 0.15;
@@ -271,7 +297,7 @@ export interface NetworkSummary {
 
 export function networkSummary(ds: Network, opts: { windowDays?: number } = {}): NetworkSummary {
   const windowDays = opts.windowDays ?? 14;
-  const latestTs = Math.max(...ds.readings.map((r) => r.ts));
+  const latestTs = latestTsOf(ds);
   const win = ds.readings.filter((r) => r.ts >= latestTs - windowDays * 24 * 3_600_000);
   const online = win.filter((r) => r.online);
 
@@ -295,8 +321,8 @@ export function networkSummary(ds: Network, opts: { windowDays?: number } = {}):
     avgUtilisation: round(mean(online.map((r) => r.utilisation))),
     faultRatePct: win.length ? round((win.filter((r) => r.faulted).length / win.length) * 100, 2) : 0,
     peakHour,
-    busiest: sorted[0],
-    quietest: sorted[sorted.length - 1],
+    busiest: sorted[0] ?? { name: "—", utilisation: 0 },
+    quietest: sorted[sorted.length - 1] ?? { name: "—", utilisation: 0 },
     weekendVsWeekday: wkDay > 0 ? round(wkEnd / wkDay, 2) : 1,
   };
 }
@@ -316,12 +342,12 @@ export interface LoadShift {
 }
 
 export function loadShiftOpportunity(ds: Network): LoadShift {
-  const ranked = HOUR_PROFILE.map((v, h) => ({ h, v }));
+  const ranked = hourProfile(ds).map((v, h) => ({ h, v }));
   const peakHours = [...ranked].sort((a, b) => b.v - a.v).slice(0, 3).map((x) => x.h);
   const troughHours = [...ranked].sort((a, b) => a.v - b.v).slice(0, 4).map((x) => x.h);
 
   // Rolling 24h so every hour-of-day is represented (avoids a partial "today").
-  const latestTs = Math.max(...ds.readings.map((r) => r.ts));
+  const latestTs = latestTsOf(ds);
   const win = ds.readings.filter((r) => r.ts > latestTs - 24 * 3_600_000 && r.online);
 
   const peakKwh = round(sum(win.filter((r) => peakHours.includes(r.hour)).map((r) => r.energyKwh)), 1);

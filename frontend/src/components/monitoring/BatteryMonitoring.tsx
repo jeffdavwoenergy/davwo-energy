@@ -44,7 +44,7 @@ export function BatteryMonitoring() {
           <>
             <KpiCard label="Avg State of Charge" value={`${data.avgSocPct}%`} icon={BatteryCharging} tone="mint" live caption={`Reserve floor ${data.backupReservePct}%`} />
             <KpiCard label={FLOW_LABEL[data.flow]} value={formatNumber(Math.abs(data.netPowerKw))} unit="kW" icon={Zap} tone="sky" caption={data.flow === "idle" ? "Standby" : `${data.flow === "charging" ? "Storing" : "Supplying"} power`} />
-            <KpiCard label="Battery Health" value={`${data.healthPct}%`} icon={HeartPulse} tone="lavender" caption={`${formatNumber(data.totalCycles)} cycles`} />
+            <KpiCard label="Battery Health" value={data.healthPct != null ? `${data.healthPct}%` : "Not reported"} icon={HeartPulse} tone="lavender" caption={data.totalCycles != null ? `${formatNumber(data.totalCycles)} cycles` : data.capacityNote} />
             <KpiCard label="Savings Today" value={`£${data.savingsTodayGbp.toFixed(2)}`} icon={PiggyBank} tone="peach" caption={`£${data.savingsMonthGbp.toFixed(2)} this month`} />
           </>
         )}
@@ -95,7 +95,7 @@ export function BatteryMonitoring() {
               <Row label="Usable capacity" value={`${formatNumber(data.usableCapacityKwh)} kWh`} />
               <Row label="Total capacity" value={`${formatNumber(data.totalCapacityKwh)} kWh`} />
               <Row label="Energy throughput (today)" value={`${formatNumber(data.throughputTodayKwh)} kWh`} />
-              <Row label="Lifetime cycles" value={formatNumber(data.totalCycles)} />
+              <Row label="Lifetime cycles" value={data.totalCycles != null ? formatNumber(data.totalCycles) : "Not reported"} />
             </div>
           )}
         </Panel>
@@ -124,8 +124,8 @@ export function BatteryMonitoring() {
                   <div className="mt-3 grid grid-cols-2 gap-2 text-[11px] text-muted-foreground">
                     <span className="flex items-center gap-1"><Zap size={12} /> {u.powerKw > 0 ? "+" : ""}{u.powerKw} kW</span>
                     <span className="flex items-center gap-1"><Gauge size={12} /> {u.capacityKwh} kWh</span>
-                    <span className="flex items-center gap-1"><HeartPulse size={12} /> {u.healthPct}% health</span>
-                    <span className="flex items-center gap-1"><RefreshCw size={12} /> {formatNumber(u.cycles)} cycles</span>
+                    {u.healthPct != null && <span className="flex items-center gap-1"><HeartPulse size={12} /> {u.healthPct}% health</span>}
+                    {u.cycles != null && <span className="flex items-center gap-1"><RefreshCw size={12} /> {formatNumber(u.cycles)} cycles</span>}
                   </div>
                 </div>
               ))}

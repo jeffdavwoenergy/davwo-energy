@@ -5,7 +5,7 @@
 import { getNetwork } from "@/lib/ani/network";
 import {
   analyse, forecast, monitor, optimise, recommend,
-  loadShiftOpportunity, networkSummary,
+  loadShiftOpportunity, networkSummary, hourProfile,
   type Insight,
 } from "@/lib/ani/engine";
 import { alerts as syntheticAlerts, type Alert } from "@/lib/server/simulator";
@@ -15,7 +15,7 @@ import {
   listUserAssets, getUserAsset, addUserAsset, updateUserAsset, removeUserAsset,
   type UserAsset, type NewAssetInput, type AssetUpdate, type AssetSpecs,
 } from "@/lib/server/assetsStore";
-import { listReadingsForOrg, type AssetReading } from "@/lib/server/assetReadings";
+import { listReadingsForOrg as listReadingsForOrgStored, type AssetReading } from "@/lib/server/assetReadings";
 import { deviceAlerts, DEVICE_ALERT_PREFIX } from "@/lib/server/deviceInsights";
 import { listOrgUsers, getPreferences, findById } from "@/lib/server/users";
 import { sendEmail, emailShell, escapeHtml, isEmailConfigured } from "@/lib/server/email";
@@ -24,6 +24,11 @@ import { getRegionProviders, type RegionProviders } from "@/lib/data/regions";
 import { resolveTenant } from "@/lib/server/tenants";
 import type { MapPin, PriceSlot } from "@/lib/data/types";
 import { USE_REAL_DATA } from "@/lib/data/config";
+import { liveSnapshot } from "@/lib/server/integrations/sync";
+
+/** True when this org's EV network and devices come from its integrations
+ * (getNetwork() is already the real network) rather than the demo generator. */
+const isLive = (orgId?: string) => Boolean(orgId && liveSnapshot(orgId));
 
 const sum = (a: number[]) => a.reduce((s, x) => s + x, 0);
 const round = (x: number, n = 2) => +x.toFixed(n);
@@ -78,6 +83,9 @@ export async function metrics(orgId?: string) {
 
   const intensity = carbon?.intensity_gco2_kwh ?? null;
   if (carbon) sources.push(region.carbonSourceId);
+  const live = isLive(orgId);
+  if (live) sources.unshift(...new Set(liveSnapshot(orgId!)!.devices.map((d) => d.provider)));
+  const liveMon = live ? monitor(net) : null;
   const co2AvoidedT =
     intensity != null
       ? round((energy24Kwh * Math.max(0, region.gridBaselineGco2 - intensity)) / 1_000_000, 3)
@@ -87,11 +95,18 @@ export async function metrics(orgId?: string) {
     active_chargers: portsOnline,
     chargers_total: portsTotal,
     charging_sessions: sessions24,
-    connected_vehicles: vehiclesNow,
+    // Live: chargers drawing power right now (a long session started before
+    // the window counts too); the engine's session starts would read 0.
+    connected_vehicles: live ? latest.filter((r) => r.energyKwh > 0.05).length : vehiclesNow,
     energy_consumption_mwh: round(energy24Kwh / 1000, 2),
     average_cost_per_kwh: round(pricePerKwh, 3),
-    forecast_confidence_pct: 87,
-    infrastructure_status: "Healthy",
+    // Live orgs: confidence is the backtested in-band rate on their own
+    // history, and status reflects their real stations — never the demo's
+    // fixed values.
+    forecast_confidence_pct: live ? liveForecastConfidence() : 87,
+    infrastructure_status: liveMon
+      ? liveMon.stations.some((s) => s.status === "down") ? "Attention" : liveMon.stations.some((s) => s.status === "degraded") ? "Degraded" : "Healthy"
+      : "Healthy",
     today_summary: {
       total_revenue_gbp: Math.round(energy24Kwh * pricePerKwh),
       total_energy_mwh: round(energy24Kwh / 1000, 2),
@@ -123,6 +138,9 @@ export async function metrics(orgId?: string) {
 // ----------------------------------------------------------------------------
 export async function energySeries(orgId: string, period: "day" | "week" | "month" = "day") {
   const net = getNetwork();
+  // A live org's network IS its integrated readings — overlaying the stored
+  // AssetReadings on top would count the same energy twice.
+  const listReadingsForOrg = isLive(orgId) ? async (): Promise<AssetReading[]> => [] : listReadingsForOrgStored;
   const dates = [...new Set(net.readings.map((r) => r.dateStr))].sort();
   const realKwhInRange = (real: AssetReading[], fromMs: number, toMs: number) =>
     sum(
@@ -209,6 +227,19 @@ export function recommendation() {
 // Map pins — real OpenChargeMap sites, or the engine's stations.
 // ----------------------------------------------------------------------------
 export async function mapPins(orgId?: string): Promise<MapPin[]> {
+  if (isLive(orgId)) {
+    // The org's own real devices, one pin per site — not public charge points.
+    const bySite = new Map<string, MapPin>();
+    for (const a of await listUserAssets(orgId!)) {
+      if (!a.location) continue;
+      const pin = bySite.get(a.site) ?? { site: a.site, lat: a.location.lat, lng: a.location.lng, status: "operational" as MapPin["status"], active_sessions: 0 };
+      if (a.status === "down") pin.status = "critical";
+      else if (a.status === "degraded" && pin.status === "operational") pin.status = "warning";
+      if (a.type === "EV Charger" && a.telemetry?.statusCode === 2) pin.active_sessions += 1;
+      bySite.set(a.site, pin);
+    }
+    return [...bySite.values()];
+  }
   if (USE_REAL_DATA) {
     const region = await regionFor(orgId);
     const real = await region.fetchChargePoints();
@@ -247,9 +278,35 @@ export async function forecastPayload(horizon = "14d", orgId?: string) {
     };
   }).filter(Boolean) as { time: string; value: number; lower: number; upper: number }[];
 
+  const peak = points.reduce((a, b) => (b.value > a.value ? b : a), points[0]);
+  if (isLive(orgId)) {
+    // Live: the region's weather is for the org's market (UK), not where its
+    // integrated sites are — so drivers come from the sites' own history.
+    const prof = hourProfile(net);
+    const peakHour = prof.indexOf(Math.max(...prof));
+    const days = net.rangeDays;
+    return {
+      horizon,
+      confidence: liveForecastConfidence(),
+      peak_mwh: peak?.value ?? 0,
+      peak_time: peak?.time ?? "",
+      drivers: net.stations.length
+        ? [
+            `Built from ${days} days of real hourly charger history (${net.stations.reduce((s, st) => s + st.ports.length, 0)} chargers)`,
+            `Busiest hour in the data: ${String(peakHour).padStart(2, "0")}:00 UTC`,
+            "Confidence is the backtested share of past days that landed inside the forecast band",
+          ]
+        : ["No EV chargers connected yet, so there's nothing to forecast"],
+      weather: undefined,
+      points,
+      method: "seasonal_naive_x_trend",
+      data_mode: "live" as const,
+      data_sources: [...new Set(liveSnapshot(orgId!)!.devices.map((d) => d.provider)), "ani_engine"],
+    };
+  }
+
   const region = await regionFor(orgId);
   const weather = USE_REAL_DATA ? await region.fetchWeather() : null;
-  const peak = points.reduce((a, b) => (b.value > a.value ? b : a), points[0]);
 
   return {
     horizon,
@@ -288,6 +345,14 @@ export function forecastAccuracy(): NetworkBacktest {
 const ASSET_FAULT_PREFIX = "asset-fault:";
 const assetFaultAlertId = (assetId: string) => `${ASSET_FAULT_PREFIX}${assetId}`;
 
+/** The device's own reported fault ("CP input test error (shorted)") when an
+ * integration supplied one — far more actionable than "is offline". */
+function faultTitle(a: UserAsset, fault: Fault): string {
+  const reported = typeof a.telemetry?.statusText === "string" ? a.telemetry.statusText : null;
+  if (reported && a.status !== "healthy") return `${a.name}: ${reported}`;
+  return fault.kind === "offline" ? `${a.name} is offline` : `${a.name} is degraded`;
+}
+
 function assetFaultOf(a: UserAsset): Fault | null {
   return classifyFault({ stationId: a.id, name: a.name, status: a.status, portsOnline: a.status === "healthy" ? 1 : 0, portsTotal: 1 }, 0);
 }
@@ -311,7 +376,7 @@ async function assetFaultAlerts(orgId: string, states: Map<string, AlertStateRec
       device: ASSET_DEVICE[a.type],
       severity: fault.kind === "offline" ? "high" : "medium",
       status: st.status,
-      title: fault.kind === "offline" ? `${a.name} is offline` : `${a.name} is degraded`,
+      title: faultTitle(a, fault),
       asset: a.name,
       site: a.site,
       created_at: a.updatedAt,
@@ -334,7 +399,8 @@ export async function alertsWithState(orgId: string): Promise<Alert[]> {
     const st = states.get(a.id);
     return st ? { ...a, ...st } : a;
   };
-  const synthetic = syntheticAlerts().map((a) => withState({ ...a, device: a.device ?? "ev" }));
+  // Live orgs only ever see alerts raised by their real devices.
+  const synthetic = isLive(orgId) ? [] : syntheticAlerts().map((a) => withState({ ...a, device: a.device ?? "ev" }));
   const devices = (await deviceAlerts(orgId)).map(withState);
   return [...synthetic, ...devices, ...(await assetFaultAlerts(orgId, states))];
 }
@@ -465,7 +531,8 @@ export async function faultSummary(orgId: string): Promise<FaultSummary> {
     if (f) faults.push(f);
   }
 
-  const userAssets = await listUserAssets(orgId);
+  // A live org's EV chargers are already the network's ports above.
+  const userAssets = (await listUserAssets(orgId)).filter((a) => !(isLive(orgId) && a.external && a.type === "EV Charger"));
   for (const a of userAssets) {
     const f = assetFaultOf(a);
     if (f) faults.push(f);
@@ -557,8 +624,9 @@ export async function comparisonSummary(
   const [carbon, pricing, realCur, realPrev] = await Promise.all([
     USE_REAL_DATA ? region.fetchCarbonIntensity() : Promise.resolve(null),
     USE_REAL_DATA ? region.fetchPricing() : Promise.resolve(null),
-    opts.orgId ? listReadingsForOrg(opts.orgId, curFromMs, realCurToMs) : Promise.resolve([]),
-    opts.orgId ? listReadingsForOrg(opts.orgId, prevFromMs, realPrevToMs) : Promise.resolve([]),
+    // Live orgs: the network already is their stored readings (no overlay).
+    opts.orgId && !isLive(opts.orgId) ? listReadingsForOrgStored(opts.orgId, curFromMs, realCurToMs) : Promise.resolve([]),
+    opts.orgId && !isLive(opts.orgId) ? listReadingsForOrgStored(opts.orgId, prevFromMs, realPrevToMs) : Promise.resolve([]),
   ]);
   const sources: string[] = [];
   const price = pricing?.price_per_kwh ?? 0.18;
@@ -640,7 +708,7 @@ export async function updateAlertStatus(orgId: string, alertId: string, status: 
       device: ASSET_DEVICE[asset.type],
       severity: fault?.kind === "offline" ? "high" : "medium",
       status,
-      title: fault ? (fault.kind === "offline" ? `${asset.name} is offline` : `${asset.name} is degraded`) : `${asset.name} fault cleared`,
+      title: fault ? faultTitle(asset, fault) : `${asset.name} fault cleared`,
       asset: asset.name,
       site: asset.site,
       created_at: asset.updatedAt,
@@ -673,6 +741,10 @@ export interface AssetRow {
   installed_at?: string;
   product_id?: string;
   specs?: AssetSpecs;
+  /** Present on devices discovered through a device integration. */
+  external?: UserAsset["external"];
+  telemetry?: UserAsset["telemetry"];
+  last_seen_at?: string;
 }
 
 // Illustrative Battery/Solar entries — the underlying engine only models EV
@@ -749,9 +821,25 @@ export async function assets(orgId: string): Promise<AssetRow[]> {
     installed_at: a.installed_at,
     product_id: a.product_id,
     specs: a.specs,
+    external: a.external,
+    telemetry: a.telemetry,
+    last_seen_at: a.last_seen_at,
   }));
 
+  // Live orgs: only their real devices — no engine stations (those ARE the
+  // integrated chargers) and no illustrative previews.
+  if (isLive(orgId)) return userRows;
   return [...evAssets, ...PREVIEW_ASSETS, ...userRows];
+}
+
+/** In-band rate of the live network's 1-day-ahead backtest (0 when there
+ * isn't enough history yet to backtest honestly). */
+function liveForecastConfidence(): number {
+  try {
+    return backtestNetwork(getNetwork()).overallByHorizon[0]?.coveragePct ?? 0;
+  } catch {
+    return 0;
+  }
 }
 
 export async function getAsset(orgId: string, id: string): Promise<AssetRow | undefined> {

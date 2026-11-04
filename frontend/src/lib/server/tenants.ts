@@ -31,12 +31,22 @@ export interface Tenant {
  * customer is the sole admin of their own tenant. */
 export const PLATFORM_ORG_ID = "davwo";
 
+/** The real-device showcase tenant — see isLiveTenant(). */
+export const LIVE_TENANT_ID = "davwo-live";
+
 export const TENANTS: Tenant[] = [
   { id: PLATFORM_ORG_ID, name: "Davwo Energy", slug: "davwo", seed: 42, plan: "enterprise", region: "London", market: "uk" },
   { id: "pilot-mcr", name: "Northbridge Mobility", slug: "northbridge", seed: 7, plan: "pilot", region: "Manchester", market: "uk" },
   { id: "growth-leeds", name: "Aire Valley Charge Co", slug: "aire-valley", seed: 99, plan: "growth", region: "Leeds", market: "uk" },
   { id: "acme", name: "Acme Corp", slug: "acme", seed: 23, plan: "enterprise", region: "Birmingham", market: "uk" },
+  { id: LIVE_TENANT_ID, name: "Davwo Live: Real Devices", slug: "davwo-live", seed: 61, plan: "pilot", region: "Paris · Amsterdam · Queensland", market: "uk" },
 ];
+
+/** True for the showcase tenant whose devices all come from real integrations
+ * (Victron VRM's public demo sites) instead of the synthetic demo network. */
+export function isLiveTenant(id: string | undefined | null): boolean {
+  return id === LIVE_TENANT_ID;
+}
 
 const DEFAULT_TENANT = TENANTS[0];
 

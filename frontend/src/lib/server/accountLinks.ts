@@ -51,3 +51,12 @@ export async function linkedUserFor(supplierId: string): Promise<string | undefi
   const row = await getPrisma()!.accountLink.findUnique({ where: { supplierId } });
   return row?.userId;
 }
+
+/** Drops a supplier's link (e.g. when the supplier account is deleted). */
+export async function unlinkSupplier(supplierId: string): Promise<void> {
+  if (!isDbConfigured()) {
+    for (const [u, s] of memoryLinks) if (s === supplierId) memoryLinks.delete(u);
+    return;
+  }
+  await getPrisma()!.accountLink.deleteMany({ where: { supplierId } });
+}

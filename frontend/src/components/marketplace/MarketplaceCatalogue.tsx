@@ -1,14 +1,18 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { Phone, MessageSquare } from "lucide-react";
+import { Phone, MessageSquare, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { ProductCard } from "@/components/marketplace/ProductCard";
 import { MarketplaceHero, MarketplaceSupplierCard, MarketplaceLogoCard } from "@/components/marketplace/MarketplaceHero";
 import { MarketplaceFilters, type MpFilterState } from "@/components/marketplace/MarketplaceFilters";
 import { useSavedProducts } from "@/lib/useSavedProducts";
-import { MP_PRODUCTS, CATEGORIES } from "@/lib/marketplaceMock";
+import { MP_PRODUCTS, CATEGORIES, type MpProduct } from "@/lib/marketplaceMock";
 import { useSupplierCatalog } from "@/lib/supplierCatalog";
+
+/** The main grid shows this many results; each device carousel below it shows up to CAROUSEL_LIMIT. */
+const GRID_LIMIT = 18;
+const CAROUSEL_LIMIT = 6;
 
 const INITIAL: MpFilterState = {
   category: "all",
@@ -65,6 +69,15 @@ export function MarketplaceCatalogue({ basePath = "/marketplace", showHero = tru
     return list;
   }, [filters, ALL]);
 
+  // Follows the active filters, so the carousels never show something the filters exclude.
+  const deviceRows = useMemo(
+    () =>
+      CATEGORIES.filter((c) => c.id !== "all")
+        .map((c) => ({ id: c.id, label: c.label, products: results.filter((p) => p.category === c.id).slice(0, CAROUSEL_LIMIT) }))
+        .filter((row) => row.products.length > 0),
+    [results],
+  );
+
   return (
     <div data-testid="marketplace-catalog">
       {showHero && (
@@ -107,7 +120,7 @@ export function MarketplaceCatalogue({ basePath = "/marketplace", showHero = tru
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-          {results.map((p) => (
+          {results.slice(0, GRID_LIMIT).map((p) => (
             <ProductCard
               key={p.id}
               product={p}
@@ -119,6 +132,28 @@ export function MarketplaceCatalogue({ basePath = "/marketplace", showHero = tru
                 toggle(id);
               }}
             />
+          ))}
+        </div>
+      )}
+
+      {/* One carousel per device type, under the grid */}
+      {deviceRows.length > 0 && (
+        <div className="mt-14 space-y-12" data-testid="marketplace-device-carousels">
+          {deviceRows.map((row) => (
+            <DeviceCarousel key={row.id} title={row.label} products={row.products}>
+              {(p) => (
+                <ProductCard
+                  product={p}
+                  basePath={basePath}
+                  contractType={filters.contractType}
+                  isSaved={isSaved(p.id)}
+                  onToggleSave={(e, id) => {
+                    e.preventDefault();
+                    toggle(id);
+                  }}
+                />
+              )}
+            </DeviceCarousel>
           ))}
         </div>
       )}
@@ -142,5 +177,49 @@ export function MarketplaceCatalogue({ basePath = "/marketplace", showHero = tru
         </div>
       </div>
     </div>
+  );
+}
+
+/** Horizontal, swipeable row of product cards with prev/next arrows — cards
+ * sized to match the grid above (1 / 2 / 3 / 4 across). */
+function DeviceCarousel({ title, products, children }: { title: string; products: MpProduct[]; children: (p: MpProduct) => React.ReactNode }) {
+  const trackRef = useRef<HTMLDivElement>(null);
+  const scroll = (dir: 1 | -1) => trackRef.current?.scrollBy({ left: dir * trackRef.current.clientWidth, behavior: "smooth" });
+
+  return (
+    <section>
+      <div className="flex items-center justify-between gap-3 mb-4">
+        <h2 className="text-xl sm:text-2xl font-bold text-[#0c132b]">{title}</h2>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => scroll(-1)}
+            aria-label={`Previous ${title}`}
+            className="w-9 h-9 rounded-full border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 flex items-center justify-center transition-colors"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => scroll(1)}
+            aria-label={`Next ${title}`}
+            className="w-9 h-9 rounded-full border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 flex items-center justify-center transition-colors"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+      <div
+        ref={trackRef}
+        className="flex gap-5 overflow-x-auto snap-x snap-mandatory pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
+        {products.map((p) => (
+          <div
+            key={p.id}
+            className="snap-start shrink-0 w-[85%] sm:w-[calc((100%-1.25rem)/2)] lg:w-[calc((100%-2.5rem)/3)] xl:w-[calc((100%-3.75rem)/4)]"
+          >
+            {children(p)}
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }

@@ -133,7 +133,7 @@ export function batteryAlerts(m: BatteryMonitor): Alert[] {
         action: "No action needed unless you expect a power cut.", href: "/monitoring",
       });
     }
-    if (u.healthPct < 88) {
+    if (u.healthPct != null && u.healthPct < 88) {
       out.push({
         id: `${key}:health`, device: "battery", severity: "low", status: "active",
         title: `${u.name} capacity down to ${u.healthPct}%`, asset: u.name, site: u.site, created_at: hourStart(),
@@ -273,7 +273,7 @@ export function batteryInsights(m: BatteryMonitor, spreadPence: number): DeviceI
       why: `${m.backupReservePct}% of the battery (${((m.totalCapacityKwh * m.backupReservePct) / 100).toFixed(1)} kWh) is held back every day and never earns savings.`,
     });
   }
-  for (const u of m.units.filter((x) => x.status === "warning")) {
+  for (const u of m.units.filter((x): x is typeof x & { temperatureC: number } => x.status === "warning" && x.temperatureC != null)) {
     out.push({
       type: "health", severity: "medium", asset: `${u.name} · ${u.site}`,
       metric: { name: "temperature °C", value: u.temperatureC, window: "now" },

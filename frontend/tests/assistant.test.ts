@@ -107,7 +107,11 @@ describe("assistant narration (LLM)", () => {
     const r = await answer("network overview");
     expect(r.mode).toBe("live-llm");
     expect(r.blocks[0]).toMatchObject({ type: "text", text: "Here is the live picture." });
-    expect(callLLMMock).toHaveBeenCalledWith(expect.any(String), expect.stringContaining("network overview"), 220);
+    expect(callLLMMock).toHaveBeenCalledWith(expect.any(String), expect.stringContaining("network overview"), 1500);
+    // The LLM is given the actual figures behind the blocks, not just their names.
+    const prompt = callLLMMock.mock.calls[0][1] as string;
+    expect(prompt).toContain("DATA:");
+    expect(prompt).toMatch(/KPIs: Energy \(24h\) = [\d.]+ MWh/);
   });
   it("falls back to the deterministic template when the LLM returns null", async () => {
     llmConfigured.value = true;
